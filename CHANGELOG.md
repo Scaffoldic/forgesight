@@ -29,3 +29,9 @@ All notable changes to ForgeSight are documented here. The format follows
   head-based sampling and graceful `force_flush`/`shutdown` (`atexit`-registered) —
   behind the same `emit_record`/`emit_event` surface. Adds a `sync_export` mode for
   deterministic tests. 97.7% coverage.
+- **feat-004 — `forgesight-otel` OpenTelemetry exporter.** Maps records onto OTLP
+  spans via the GenAI semantic conventions (`gen_ai.provider.name` canonical; cost as
+  the `forgesight.usage.cost_usd` extension; content opt-in; `error.type` on failure),
+  pinned + version-stamped. W3C TraceContext inject/extract helpers. One package
+  unlocks any OTLP backend (Datadog, Honeycomb, Jaeger, Tempo, Phoenix, …). Metrics
+  follow in feat-005.

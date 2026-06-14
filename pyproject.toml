@@ -53,7 +53,7 @@ addopts = "-q --cov --cov-report=term-missing --cov-fail-under=90"
 [tool.coverage.run]
 branch = true
 # Each feature that introduces a package appends its import name here.
-source_pkgs = ["forgesight_api", "forgesight_core", "forgesight"]
+source_pkgs = ["forgesight_api", "forgesight_core", "forgesight", "forgesight_otel"]
 
 [tool.coverage.report]
 show_missing = true
