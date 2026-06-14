@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-002 |
 | **Title** | Telemetry runtime & instrumentation API |
-| **Status** | `in-progress` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -563,10 +563,10 @@ per [ADR-0008](../adr/0008-python-first-multilanguage-parity.md).
 
 ## Implementation status
 
-**Status: in-progress (Python).** Landing on
-`feat/002-telemetry-runtime-and-instrumentation-api` — `forgesight-core` +
-`forgesight` facade. 79 tests across both packages, **96.5% coverage**,
-`mypy --strict` + `ruff` clean.
+**Status: shipped (Python).** Landed via
+[PR #2](https://github.com/Scaffoldic/forgesight/pull/2) on `main` (CI green on
+Python 3.11/3.12/3.13) — `forgesight-core` + `forgesight` facade. 79 tests across
+both packages, **96.5% coverage**, `mypy --strict` + `ruff` clean.
 
 | Module | Scope |
 |---|---|
