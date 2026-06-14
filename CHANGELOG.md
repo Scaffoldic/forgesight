@@ -73,3 +73,7 @@ All notable changes to ForgeSight are documented here. The format follows
   records into a `prometheus_client` registry served on a pull `/metrics` endpoint (+
   optional Pushgateway); cardinality-bounded labels (`run_id`/`trace_id` never labels);
   GenAI histogram buckets verbatim from feat-005.
+- **feat-013 — `forgesight-langfuse` exporter** (v0.2). Ships records to Langfuse over
+  its OTLP ingest endpoint (Basic auth) enriched with native `langfuse.*` attributes
+  (observation type; trace name/user/session/tags); LLM→generation, tool→tool,
+  step→span; the SDK's computed cost ingested. No `langfuse` SDK dependency.

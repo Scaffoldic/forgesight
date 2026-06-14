@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-013 |
 | **Title** | Langfuse exporter — OTLP-native ingest + first-party observation/cost mapping |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.2 |
@@ -350,3 +350,72 @@ targets parity by 0.4.
 - [`../requirements.md`](../requirements.md) FR-3, FR-5, FR-9, FR-11, NFR-3
 - feat-004 (OTLP exporter / GenAI mapping), feat-001/002 (model + runtime), feat-006 (cost), feat-008 (interceptors), feat-011 (conformance)
 - Prior art: Langfuse OTLP ingest (`/api/public/otel`), Langfuse observation model, LiteLLM cost map
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #13 (CI green on Python 3.11/3.12/3.13).
+New package `forgesight-langfuse`. 199 tests workspace-wide, 96.5% coverage,
+`mypy --strict` + `ruff` clean.
+
+| Area | What landed |
+|---|---|
+| `LangfuseExporter` | A `TelemetryExporter` that wraps `forgesight-otel`'s `OTelExporter` pointed at `{host}/api/public/otel` with `Authorization: Basic base64(pk:sk)`, and **enriches each record with `langfuse.*` attributes**: `langfuse.observation.type` (agent/chain/span/generation/tool), and on the root `langfuse.trace.name` + `langfuse.user.id` / `langfuse.session.id` / `langfuse.trace.tags` lifted from business metadata. |
+| Cost | The SDK's `forgesight.usage.cost_usd` (feat-006) is emitted on the generation span — Langfuse ingests it (prioritised over its own table). |
+| Content gating | `capture_content` forwarded to the inner `OTelExporter` (off by default, P7). |
+| `region`/`host` | `region` (`us`/`eu`) resolves a host; explicit `host` wins. |
+| Packaging | Entry point `forgesight.exporters → langfuse`; deps = `forgesight-otel` + `forgesight-core`. |
+
+### Deviations from this spec
+
+- **No `langfuse` Python SDK dependency.** The first-party value (native
+  `langfuse.*` observation mapping + ingested cost) is delivered over the **OTLP
+  transport** (the spec's path A) with `langfuse.*` attribute enrichment — which is
+  exactly what Langfuse's OTLP ingest reads, and what makes the package fully testable
+  offline. So paths A and B converge into one OTLP-based exporter; deps are
+  `forgesight-otel`, not `langfuse`.
+- **`flush_at` / `flush_interval_millis` kwargs not implemented** — batching is the
+  pipeline's job (feat-003); the OTLP HTTP exporter sends per `export()` call.
+- **Cost ingested via the `forgesight.usage.cost_usd` span attribute**, not an explicit
+  Langfuse `cost_details` SDK field (no SDK). Token usage + cost both flow.
+
+### Not yet implemented
+
+`langfuse` SDK path (if a team needs SDK-only features); explicit `cost_details`/
+`input`/`output` Langfuse-native fields beyond the OTLP `gen_ai.*` mapping; TypeScript
+port.
+
+## Runbook
+
+### How do I send ForgeSight telemetry to Langfuse?
+
+```bash
+pip install forgesight-langfuse
+```
+
+```python
+import forgesight
+from forgesight_langfuse import LangfuseExporter
+
+forgesight.configure(exporters=[LangfuseExporter(
+    public_key="pk-lf-...", secret_key="sk-lf-...", host="https://cloud.langfuse.com",
+)])
+```
+
+Or by name: `exporters: [{name: langfuse, config: {public_key: …, secret_key: …}}]`.
+LLM calls appear as **generation** observations, tools as **tool**, the run as a trace
+with `user`/`session`/`tags` from your business metadata, and the SDK's cost on the
+generation.
+
+### Do I even need this package?
+
+Not necessarily — Langfuse ingests OTLP. The zero-package path is `forgesight-otel`
+pointed at `https://cloud.langfuse.com/api/public/otel` with
+`Authorization: Basic base64(pk:sk)`. Use `forgesight-langfuse` for the native
+`langfuse.*` observation enrichment.
+
+### How do I capture prompts/responses?
+
+`capture_content=True` (off by default, P7) — run the redaction interceptor (feat-008)
+first for sensitive workloads.

@@ -60,6 +60,7 @@ source_pkgs = [
     "forgesight",
     "forgesight_otel",
     "forgesight_prometheus",
+    "forgesight_langfuse",
 ]
 
 [tool.coverage.report]
