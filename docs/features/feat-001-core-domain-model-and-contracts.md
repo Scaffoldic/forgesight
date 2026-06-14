@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-001 |
 | **Title** | Core domain model & SPI contracts |
-| **Status** | `proposed` |
+| **Status** | `in-progress` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -631,3 +631,84 @@ anchor; TS targets it from the start of its 0.x line (Python ships first per
 - Prior art: OpenLLMetry (Traceloop), OpenInference (Arize Phoenix), Langfuse
   SDK, Pydantic Logfire — each couples its model to a vendor; this feature is
   the neutral core they lack.
+
+---
+
+## Implementation status
+
+**Status: in-progress (Python).** Landing on `feat/001-core-domain-model-and-contracts`.
+
+| Module | Scope |
+|---|---|
+| `forgesight_api/model.py` | `RunStatus` + `Kind` enums; `TokenUsage` (frozen, `.total`); `Content` (experimental); `LLMCall` / `ToolCall` / `MCPCall` / `Step` / `AgentRun` / `WorkflowRun` operation models with `duration_ms`. |
+| `forgesight_api/record.py` | Immutable `Record` (frozen, read-only `attributes` via `MappingProxyType`, `duration_ms`); `ExportResult`; `EventType` (open set); `LifecycleEvent`. |
+| `forgesight_api/spi.py` | The four `runtime_checkable` Protocols: `TelemetryExporter`, `Interceptor`, `EventListener`, `PricingProvider`. |
+| `forgesight_api/ids.py` | `new_ulid` / `is_valid_ulid` (26-char Crockford base32) and `new_trace_id` / `is_valid_trace_id` (W3C 32-hex). |
+| tests | 42 unit tests across model / record / ids / spi; **100% coverage**; `mypy --strict` clean; `ruff` clean. |
+
+### Deviations from this spec
+
+- **`StrEnum` instead of `class X(str, Enum)`.** §4.2 sketched `(str, Enum)`; the
+  implementation uses `enum.StrEnum` (available on the ≥3.11 floor, ADR-0008).
+  Same wire-serialisation and string-equality semantics, cleaner `str()`, and it
+  satisfies the linter without a suppression.
+- **ULID generator co-located in `forgesight-api`.** §4.3 said the generator would
+  live in `-core` to keep `-api` "I/O-free". The implementation puts both
+  `new_ulid()` and `is_valid_ulid()` in `forgesight_api/ids.py`: ULID generation is
+  ~40 lines of pure stdlib (`time`, `os.urandom`) with no network/disk I/O and no
+  third-party dependency, so it does not violate the leaf-package charter — and it
+  makes the contract self-contained and immediately testable (spec §7 lists ULID
+  format conformance as a feat-001 test). `-core` will reuse this helper.
+
+### Not yet implemented
+
+- TypeScript port (`@agentforge/sdk-api`) — Python-first (ADR-0008).
+- `import-linter` dependency-rule CI check (spec §7) — deferred to feat-010's
+  config/CI hardening; for now the dependency is enforced by `forgesight-api`'s
+  `pyproject.toml` declaring only `typing-extensions`.
+
+## Runbook
+
+### How do I write a custom exporter?
+
+A plain class with three methods *is* a `TelemetryExporter` (structural Protocol —
+no base class to import):
+
+```python
+from collections.abc import Sequence
+from forgesight_api import TelemetryExporter, Record, ExportResult
+
+class StdoutExporter:
+    def export(self, records: Sequence[Record]) -> ExportResult:
+        for r in records:
+            print(r.kind, r.run_id, r.name)
+        return ExportResult.SUCCESS          # return FAILURE on error — never raise (P6)
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+    def shutdown(self, timeout_millis: int = 30_000) -> None:
+        pass
+
+assert isinstance(StdoutExporter(), TelemetryExporter)   # registration-time check
+```
+
+Register it via the `forgesight.exporters` entry point (loader lands in feat-010).
+
+### How do I write a custom pricing provider?
+
+```python
+from forgesight_api import PricingProvider, TokenUsage
+
+class FlatRatePricer:
+    def price(self, provider: str, model: str, usage: TokenUsage) -> float | None:
+        return usage.total * 1e-6        # return None for unknown models — never raise
+```
+
+### How do I generate a run id?
+
+```python
+from forgesight_api import new_ulid, new_trace_id
+run_id = new_ulid()        # 26-char Crockford base32, sorts by creation time
+trace_id = new_trace_id()  # 32-hex W3C trace id
+```
