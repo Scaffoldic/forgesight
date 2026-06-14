@@ -1,0 +1,32 @@
+[project]
+name = "forgesight-prometheus"
+version = "0.1.0"
+description = "ForgeSight Prometheus exporter — pull /metrics + push-gateway for agent telemetry."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "prometheus", "metrics", "ai-agents", "forgesight"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core", "prometheus-client>=0.20"]
+
+[project.entry-points."forgesight.exporters"]
+prometheus = "forgesight_prometheus.exporter:PrometheusExporter"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_prometheus"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }

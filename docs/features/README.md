@@ -60,7 +60,7 @@
 
 | ID | Title | Status | Target | Languages | Package(s) |
 |---|---|---|---|---|---|
-| **feat-012** | Prometheus exporter (pull `/metrics` + push-gateway) | proposed | 0.2 | both | `forgesight-prometheus` |
+| **feat-012** | Prometheus exporter (pull `/metrics` + push-gateway) | shipped | 0.2 | both | `forgesight-prometheus` |
 | **feat-013** | Langfuse exporter (OTLP ingest + native observation/cost mapping) | proposed | 0.2 | both | `forgesight-langfuse` |
 | **feat-014** | ClickHouse exporter (columnar batch insert, immutable records) | proposed | 0.2 | both | `forgesight-clickhouse` |
 | **feat-015** | Datadog exporter (DD APM / OTLP intake) + OTLP-native backend notes | proposed | 0.2 | both | `forgesight-datadog` |

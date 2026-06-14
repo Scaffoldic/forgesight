@@ -69,3 +69,7 @@ All notable changes to ForgeSight are documented here. The format follows
   per-SPI conformance suites (`run_*_conformance`) — the executable contract every
   exporter/interceptor/listener/pricing-provider must pass (P10). **Completes the 0.1
   core (feat-001 … feat-011).**
+- **feat-012 — `forgesight-prometheus` exporter** (v0.2). `PrometheusExporter` folds
+  records into a `prometheus_client` registry served on a pull `/metrics` endpoint (+
+  optional Pushgateway); cardinality-bounded labels (`run_id`/`trace_id` never labels);
+  GenAI histogram buckets verbatim from feat-005.

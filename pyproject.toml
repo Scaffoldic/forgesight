@@ -49,12 +49,18 @@ no_implicit_reexport = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages"]
-addopts = "-q --cov --cov-report=term-missing --cov-fail-under=90"
+addopts = "-q --cov --cov-report=term-missing --cov-fail-under=90 --import-mode=importlib"
 
 [tool.coverage.run]
 branch = true
 # Each feature that introduces a package appends its import name here.
-source_pkgs = ["forgesight_api", "forgesight_core", "forgesight", "forgesight_otel"]
+source_pkgs = [
+    "forgesight_api",
+    "forgesight_core",
+    "forgesight",
+    "forgesight_otel",
+    "forgesight_prometheus",
+]
 
 [tool.coverage.report]
 show_missing = true

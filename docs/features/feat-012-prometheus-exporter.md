@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-012 |
 | **Title** | Prometheus exporter — pull-based `/metrics` (MetricReader) + push-gateway |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.2 |
@@ -344,3 +344,69 @@ Node `http`), and naming. TypeScript targets parity by 0.4.
 - [`../requirements.md`](../requirements.md) FR-6, FR-11, NFR-3
 - feat-005 (metrics & instruments), feat-011 (conformance harness)
 - Prior art: `opentelemetry-exporter-prometheus`, `prometheus-client`, OTel Prometheus default port 9464
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #12 (CI green on Python 3.11/3.12/3.13).
+New package `forgesight-prometheus`. 193 tests workspace-wide, 96.4% coverage,
+`mypy --strict` + `ruff` clean. First v0.2 feature.
+
+| Area | What landed |
+|---|---|
+| `PrometheusExporter` | A `TelemetryExporter` that **folds each record** into a `prometheus_client` `CollectorRegistry` (runs on the pipeline worker, never raises — P6); pull `/metrics` via `start_http_server` (lazy, fault-isolated); optional Pushgateway on `force_flush`/`shutdown`. |
+| Metric mapping | `{prefix}_agent_runs_total` / `_agent_failures_total` / `_agent_cost_usd_total` / `_agent_duration_milliseconds` / `_tool_invocations_total` / `_mcp_invocations_total` + `_gen_ai_client_token_usage` (label `gen_ai_token_type`) + `_gen_ai_client_operation_duration_seconds`, GenAI buckets verbatim from feat-005. |
+| Cardinality | Fixed low-cardinality label sets (agent_name / provider / operation / token_type / status / tool / method); **`run_id`/`trace_id` are never labels**. |
+| Packaging | Entry point `forgesight.exporters → prometheus`; deps = `forgesight-core` + `prometheus-client` (never in core, P1). |
+
+Also switched the workspace pytest to `--import-mode=importlib` so duplicate test
+basenames across packages (e.g. each integration's `test_exporter.py`) collect cleanly.
+
+### Deviations from this spec
+
+- **Self-contained folding** rather than an OTel `MetricReader` bridge: the exporter
+  re-derives metrics from records into its own `prometheus_client` registry. This keeps
+  it a normal `TelemetryExporter` (resolves by name, passes conformance) and decoupled
+  from the core `MetricsSubsystem`'s OTel `MeterProvider`.
+- **Fixed minimal label sets** (no `label_allowlist` kwarg yet) — business-metadata
+  labels (`environment`/`team`) are a follow-up (they'd widen every series' fixed label
+  set). `run_id`/`trace_id` exclusion is structural, not allow-list-based.
+- **HTTP server has no clean cross-version stop** on older `prometheus_client`; we call
+  `server.shutdown()` when the handle is available (best-effort).
+
+### Not yet implemented
+
+`label_allowlist` + business-metadata labels; `port: 0` push-only is supported but the
+interval-push loop is not (push happens on flush/shutdown); TypeScript port.
+
+## Runbook
+
+### How do I expose ForgeSight metrics to Prometheus?
+
+```bash
+pip install forgesight-prometheus
+```
+
+```python
+import forgesight
+from forgesight_prometheus import PrometheusExporter
+forgesight.configure(exporters=[PrometheusExporter(port=9464, prefix="agentforge")])
+# Prometheus scrapes http://<host>:9464/metrics
+```
+
+Or by name: `exporters: [{name: prometheus, config: {port: 9464}}]`.
+
+### How do I cover short-lived (CI / batch) runs?
+
+```python
+PrometheusExporter(port=0, push_gateway="http://pushgateway:9091")  # port 0 = push-only
+```
+
+Metrics push on `force_flush()` / `shutdown()` (the latter runs via `atexit`).
+
+### Why is there no `run_id` label?
+
+Deliberate — a per-`run_id` label would create one Prometheus series per run and melt
+the TSDB. Per-run detail lives in **traces** (`forgesight-otel`); metrics stay
+aggregate and bounded.
