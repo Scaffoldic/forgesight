@@ -59,3 +59,8 @@ All notable changes to ForgeSight are documented here. The format follows
   `error.type` span attribute, emits `RUN_FAILED`, and **re-raises** (never swallows,
   FR-7). `record_error()` opt-out for handled paths; `stack_capture_depth` /
   `capture_stacktrace` config.
+- **feat-010 — configuration & zero-config bootstrap.** `configure()` works with zero
+  args; layered file (`forgesight.yaml` + `${ENV}`) → env (`FORGESIGHT_*`) → kwargs;
+  named exporters/interceptors/listeners/pricing resolved via `forgesight.<group>`
+  entry points + in-process `register()`; fail-fast `*NotRegisteredError` on unknown
+  names. (Dataclass-based config; `pyyaml` added to core.)

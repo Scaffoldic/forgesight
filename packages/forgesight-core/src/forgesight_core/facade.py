@@ -8,18 +8,39 @@ loading — the call site (``forgesight.configure()``) stays the same.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from opentelemetry.sdk.metrics.export import MetricReader
 
 from forgesight_api import EventListener, Interceptor, PricingProvider, TelemetryExporter
 
+from .config import load_settings, resolve
 from .cost import TablePricingProvider
 from .exporters import ConsoleExporter
 from .interceptors import ContentCaptureGate
 from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import RunScope, WorkflowScope, current_run_scope
+
+
+def _first(*values: object) -> Any:
+    """Return the first non-None value (used for file → env → kwargs precedence)."""
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _component(group: str, item: object, configs: Mapping[str, object]) -> Any:
+    """Resolve a config entry: a name (str), a ``{name, config}`` dict, or an instance."""
+    if isinstance(item, str):
+        cfg = configs.get(item)
+        return resolve(group, item, cfg if isinstance(cfg, Mapping) else None)
+    if isinstance(item, Mapping):
+        block = item.get("config")
+        return resolve(group, str(item.get("name")), block if isinstance(block, Mapping) else None)
+    return item
 
 
 def configure(
@@ -35,56 +56,82 @@ def configure(
     deliver_step_events: bool | None = None,
     stack_capture_depth: int | None = None,
     capture_stacktrace: bool | None = None,
-    exporters: Sequence[TelemetryExporter] | None = None,
-    interceptors: Sequence[Interceptor] | None = None,
-    listeners: Sequence[EventListener] | None = None,
-    pricing: PricingProvider | None = None,
+    exporters: Sequence[str | TelemetryExporter] | None = None,
+    interceptors: Sequence[str | Interceptor | dict[str, object]] | None = None,
+    listeners: Sequence[str | EventListener | dict[str, object]] | None = None,
+    pricing: str | PricingProvider | None = None,
     pricing_overrides: dict[str, dict[str, object]] | None = None,
+    exporter_config: dict[str, dict[str, object]] | None = None,
     metrics: MetricConfig | None = None,
     metric_reader: MetricReader | None = None,
+    config_file: str | None = None,
 ) -> Runtime:
-    """Initialise the SDK. With no arguments, routes to a ``ConsoleExporter`` (FR-12)."""
+    """Initialise the SDK (FR-12). Layered config: file → env → kwargs (last wins).
+
+    Named integrations (``str``) resolve via the ``forgesight.<group>`` entry points;
+    an unknown name fails fast with the matching ``*NotRegisteredError``. With no
+    file/env/kwargs it routes to a ``ConsoleExporter`` + the vendored pricing table.
+    """
+    settings = load_settings(config_file)
+    raw_batch = settings.get("batch")
+    batch = raw_batch if isinstance(raw_batch, dict) else {}
+
     config = RuntimeConfig()
-    if service_name is not None:
-        config.service_name = service_name
-    if capture_content is not None:
-        config.capture_content = capture_content
-    if default_tool_type is not None:
-        config.default_tool_type = default_tool_type
-    if sample_rate is not None:
-        config.sample_rate = sample_rate
-    if sync_export is not None:
-        config.sync_export = sync_export
-    if max_queue_size is not None:
-        config.max_queue_size = max_queue_size
-    if max_export_batch_size is not None:
-        config.max_export_batch_size = max_export_batch_size
-    if schedule_delay_millis is not None:
-        config.schedule_delay_millis = schedule_delay_millis
-    if deliver_step_events is not None:
-        config.deliver_step_events = deliver_step_events
-    if stack_capture_depth is not None:
-        config.stack_capture_depth = stack_capture_depth
-    if capture_stacktrace is not None:
-        config.capture_stacktrace = capture_stacktrace
+    config.service_name = _first(service_name, settings.get("service_name"), config.service_name)
+    config.capture_content = _first(
+        capture_content, settings.get("capture_content"), config.capture_content
+    )
+    config.default_tool_type = _first(default_tool_type, config.default_tool_type)
+    config.sample_rate = _first(sample_rate, settings.get("sample_rate"), config.sample_rate)
+    config.sync_export = _first(sync_export, config.sync_export)
+    config.max_queue_size = _first(
+        max_queue_size, batch.get("max_queue_size"), config.max_queue_size
+    )
+    config.max_export_batch_size = _first(
+        max_export_batch_size, batch.get("max_export_batch_size"), config.max_export_batch_size
+    )
+    config.schedule_delay_millis = _first(
+        schedule_delay_millis, batch.get("schedule_delay_millis"), config.schedule_delay_millis
+    )
+    config.deliver_step_events = _first(
+        deliver_step_events, settings.get("deliver_step_events"), config.deliver_step_events
+    )
+    config.stack_capture_depth = _first(stack_capture_depth, config.stack_capture_depth)
+    config.capture_stacktrace = _first(capture_stacktrace, config.capture_stacktrace)
     config.__post_init__()  # re-validate after applying overrides
     rt = reset_runtime(config)
-    for exporter in exporters if exporters is not None else [ConsoleExporter()]:
-        rt.add_exporter(exporter)
+
+    exporter_cfg = exporter_config or settings.get("exporter_config") or {}
+    raw_exporters = exporters if exporters is not None else settings.get("exporters")
+    if raw_exporters is None:
+        rt.add_exporter(ConsoleExporter())
+    else:
+        for item in raw_exporters:
+            rt.add_exporter(_component("exporters", item, exporter_cfg))
+
     # The content gate is always first so no later interceptor or exporter can see
     # content the operator didn't opt into (P7/ADR-0007).
     rt.add_interceptor(ContentCaptureGate(capture_content=config.capture_content))
-    for interceptor in interceptors or ():
-        rt.add_interceptor(interceptor)
-    for listener in listeners or ():
-        rt.add_listener(listener)
+    raw_interceptors = (
+        interceptors if interceptors is not None else settings.get("interceptors") or ()
+    )
+    for item in raw_interceptors:
+        rt.add_interceptor(_component("interceptors", item, {}))
+
+    raw_listeners = listeners if listeners is not None else settings.get("listeners") or ()
+    for item in raw_listeners:
+        rt.add_listener(_component("listeners", item, {}))
+
     # Resolution order (cost-model §4.1): provider-supplied cost (set_cost) > a
     # caller-registered provider > the vendored table > None. Default to the table.
-    rt.set_pricing(
-        pricing
-        if pricing is not None
-        else TablePricingProvider.from_vendored(overrides=pricing_overrides)
-    )
+    raw_pricing = pricing if pricing is not None else settings.get("pricing")
+    if raw_pricing is None:
+        rt.set_pricing(TablePricingProvider.from_vendored(overrides=pricing_overrides))
+    elif isinstance(raw_pricing, str):
+        rt.set_pricing(_component("pricing", raw_pricing, {}))
+    else:
+        rt.set_pricing(raw_pricing)
+
     metric_config = metrics if metrics is not None else MetricConfig()
     if metric_config.enabled:
         rt.metrics = MetricsSubsystem(metric_config, metric_reader)

@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-010 |
 | **Title** | Configuration & zero-config bootstrap (`configure()`, env + YAML, entry-point auto-load) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1 |
@@ -464,3 +464,98 @@ package-manifest convention). Python lands first (0.1).
 - ADR-0007 (`capture_content` default), ADR-0002 (three-tier packaging)
 - feat-001 (SPIs + error types), feat-002 (runtime built by `configure()`), feat-003 (pipeline built by `configure()`)
 - feat-006 (`pricing`), feat-007 (`listeners`), feat-008 (`interceptors` + content gate)
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #10 (CI green on Python 3.11/3.12/3.13) in
+`forgesight-core` (`forgesight_core.config`) + the `forgesight` facade. 173 tests
+workspace-wide, **97.1% coverage**, `mypy --strict` + `ruff` clean.
+
+| Area | What landed |
+|---|---|
+| Error types | `ExporterNotRegisteredError` / `InterceptorNotRegisteredError` / `EventListenerNotRegisteredError` / `PricingProviderNotRegisteredError` (in `forgesight-api`). |
+| Registry + resolution | In-process `register(group, name)` + `forgesight.<group>` entry-point lookup → `resolve(group, name, config)`; built-ins registered (`console`, `in-memory`, `content-gate`, `pii-redaction`, `default`); unknown name → fail-fast at `configure()`. |
+| Layered config | `load_settings()` reads `forgesight.yaml` (CWD / `FORGESIGHT_CONFIG` / `config_file=`) with `${VAR}` / `${VAR:-default}` interpolation, then overlays `FORGESIGHT_*` env scalars; `configure()` applies file → env → kwargs (last wins). |
+| `configure()` | Accepts names **or** instances for exporters/interceptors/listeners/pricing; resolves names; `exporter_config` + `{name, config}` blocks; surfaces every knob. |
+
+### Deviations from this spec
+
+- **No Pydantic.** Config is dataclass-based (`RuntimeConfig`) with manual validation,
+  to keep the core dependency-light (P1). `pyyaml` is the one added dep (file layer).
+- **Default exporter is always `ConsoleExporter`** — the TTY→`console` /
+  non-TTY→`in-memory` auto-switch is deferred (kept the existing default so tests +
+  callers are stable).
+- **`configure()` always reconfigures** (it resets the runtime); the "no-op on
+  identical config" idempotency optimization is deferred. Re-calling is safe (flushes
+  the old pipeline via `reset_runtime`).
+- **`register`/`resolve` live in `forgesight_core.config`** (re-exported from
+  `forgesight`); there's no separate `Settings`/`SdkRuntime` Pydantic surface — the
+  `Runtime` is the handle.
+- **Env→config mapping is partial.** `FORGESIGHT_SERVICE_NAME` / `_EXPORTERS` /
+  `_CAPTURE_CONTENT` / `_SAMPLE_RATE` overlay; `FORGESIGHT_OTLP_ENDPOINT` and the
+  `FORGESIGHT_BSP_*` batch knobs are read from the YAML `batch:`/`exporter_config:`
+  blocks rather than dedicated env vars (follow-up).
+- **`pricing_overrides`** applies only on the default-table path (a named/instance
+  pricing provider supersedes it).
+
+### Not yet implemented
+
+TTY/in-memory default switch; identical-config no-op; full `FORGESIGHT_*`→nested-key env
+mapping; unknown-top-level-key rejection; `dump_config()`; TypeScript port.
+
+## Runbook
+
+### Zero-config — just see something
+
+```python
+import forgesight as af
+af.configure()                      # ConsoleExporter, vendored pricing, atexit flush
+with af.telemetry.agent_run("hello") as run:
+    with run.llm_call("anthropic", "claude-sonnet-4-5") as call:
+        call.record_usage(input=120, output=30)
+```
+
+### Same code, prod config in a file / env
+
+```yaml
+# forgesight.yaml
+service_name: issue-classifier
+exporters: [otel]
+sample_rate: 1.0
+exporter_config:
+  otel: { endpoint: "${FORGESIGHT_OTLP_ENDPOINT:-http://localhost:4318}" }
+```
+
+```python
+af.configure()                      # auto-discovers forgesight.yaml + FORGESIGHT_* env
+af.configure(exporters=["otel"], sample_rate=0.1)   # kwargs win over file/env
+```
+
+### Add a backend without touching agent code
+
+`pip install forgesight-otel`, then add `otel` to the `exporters:` list (or
+`FORGESIGHT_EXPORTERS=otel`). It resolves via the `forgesight.exporters` entry point.
+
+### Register a custom integration in-process
+
+```python
+from forgesight import register
+from forgesight_api import Record, ExportResult
+
+@register("exporters", "my-sink")
+class MySink:
+    def export(self, records): ...; return ExportResult.SUCCESS
+    def force_flush(self, t=30000): return True
+    def shutdown(self, t=30000): ...
+
+af.configure(exporters=["my-sink"])
+```
+
+### A typo'd backend fails at startup, not in prod
+
+```python
+af.configure(exporters=["langfsue"])   # raises ExporterNotRegisteredError naming
+                                       # group 'forgesight.exporters' + the pip install
+```
