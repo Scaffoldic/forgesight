@@ -24,3 +24,8 @@ All notable changes to ForgeSight are documented here. The format follows
   async) and the `@instrument` decorator; the fault-isolated dispatch runtime;
   `InMemoryExporter` + `ConsoleExporter`; and a minimal zero-config `configure()`.
   Instrument an agent in under 10 lines. 96.5% coverage.
+- **feat-003 — async export pipeline.** Replaced the synchronous dispatch with a
+  bounded queue + background worker + batching, fault-isolated per exporter, with
+  head-based sampling and graceful `force_flush`/`shutdown` (`atexit`-registered) —
+  behind the same `emit_record`/`emit_event` surface. Adds a `sync_export` mode for
+  deterministic tests. 97.7% coverage.

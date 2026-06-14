@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-003 |
 | **Title** | Async export pipeline (bounded queue, batching, fault isolation, flush/shutdown) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -508,3 +508,79 @@ per [ADR-0008](../adr/0008-python-first-multilanguage-parity.md).
   `PeriodicExportingMetricReader` (the proven shape this adopts);
   <https://opentelemetry.io/docs/specs/otel/trace/sdk/> ("`export` MUST NOT
   throw"); AgentForge `feat-009-observability` (hook fault isolation precedent).
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #3 (CI green on Python 3.11/3.12/3.13).
+Replaced feat-002's synchronous dispatch with the bounded async pipeline **behind the
+same `Runtime.emit_record` / `emit_event` / `force_flush` / `shutdown` surface** — no
+change to the scopes or facade callers. 88 tests, **97.7% coverage**, `mypy --strict`
++ `ruff` clean.
+
+| Area | What landed |
+|---|---|
+| Hot path | `emit_record` = sample → interceptor chain → `queue.put_nowait` (O(1), no I/O, NFR-1/2). |
+| Bounded queue | `queue.Queue(maxsize=max_queue_size)`; on `Full` → drop newest + `dropped++` + throttled WARN (NFR-4). |
+| Worker | single daemon thread; drains batches (≤ `max_export_batch_size`) every `schedule_delay_millis`; started lazily on first record. |
+| Fault isolation | per-exporter try/except in `_safe_export`; `FAILURE` counted; one backend down never affects others or the agent (P6, NFR-3). |
+| Flush / shutdown | `force_flush` drains + flushes; `shutdown` stops worker, drains, closes exporters; idempotent; `atexit`-registered. |
+| Sampling | head-based, deterministic per `trace_id` (`sample_rate`); whole-trace keep/drop. |
+| Config | `RuntimeConfig` knobs + `__post_init__` validation; surfaced through `configure()`. |
+
+### Deviations from this spec
+
+- **`sync_export` mode added.** Beyond the async pipeline, a synchronous inline-export
+  mode (`configure(sync_export=True)`) ships for deterministic unit tests and simple
+  scripts. Default is the async bounded pipeline; the scope-facing surface is identical.
+- **Events stay synchronous.** `emit_event` delivers to listeners inline (isolated);
+  the queue/worker is the *record* (trace) path. An async event path is a feat-007
+  follow-up if needed.
+- **`export_timeout_millis` is plumbed as config but not yet enforced per-call** — the
+  worker honours `schedule_delay`/`shutdown` timeouts; hard per-export cancellation is
+  a follow-up.
+- **Counters not yet metrics.** `dropped` / `export_failures` / `sampled_out` live on
+  `Runtime`; exposing them as `sdk_*` metrics is feat-005.
+- **Worker supervision/restart + per-exporter timeout** deferred (spec §7/§8).
+
+### Not yet implemented
+
+Per-call export timeout enforcement; worker-restart supervision; the `sdk_*` drop/
+failure metrics (feat-005); TypeScript port.
+
+## Runbook
+
+### Will telemetry ever block or fail my agent?
+
+No. The hot path (`emit_record`) only samples, runs interceptors, and enqueues — never
+I/O. A background worker batches and exports. A slow/failing backend can't block or
+fail your agent; under sustained overload the newest record is dropped and counted.
+
+### How do I make telemetry deterministic in tests?
+
+```python
+from forgesight import configure, InMemoryExporter
+mem = InMemoryExporter()
+configure(exporters=[mem], sync_export=True)   # inline export, no flush needed
+# ... run your agent ...
+assert mem.records
+```
+
+For the async path, flush first: `forgesight.get_runtime().force_flush()`.
+
+### How do I flush before exit / a deploy swap?
+
+`shutdown()` is `atexit`-registered (clean exit flushes automatically). Explicitly:
+`forgesight.get_runtime().force_flush()` or `.shutdown()`.
+
+### How do I tune throughput / memory / sampling?
+
+```python
+configure(
+    max_queue_size=8192,          # bigger buffer (more memory, fewer drops)
+    max_export_batch_size=1024,
+    schedule_delay_millis=2000,
+    sample_rate=0.1,             # keep 10% of traces (whole-trace decision)
+)
+```

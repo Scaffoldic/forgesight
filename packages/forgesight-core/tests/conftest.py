@@ -12,6 +12,6 @@ from forgesight_core import InMemoryExporter, configure, reset_runtime
 @pytest.fixture
 def mem() -> Iterator[InMemoryExporter]:
     exporter = InMemoryExporter()
-    configure(exporters=[exporter])
+    configure(exporters=[exporter], sync_export=True)  # deterministic for unit tests
     yield exporter
     reset_runtime()
