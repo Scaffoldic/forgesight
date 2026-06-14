@@ -12,3 +12,9 @@ All notable changes to ForgeSight are documented here. The format follows
   9 ADRs, 22 feature specs), `uv` workspace skeleton, Apache-2.0 license, CI
   (ruff + mypy + pytest, coverage ≥ 90% on Python 3.11–3.13), and the
   `forgesight-api` package skeleton.
+- **feat-001 — `forgesight-api` contracts.** The locked telemetry domain model
+  (`AgentRun`, `WorkflowRun`, `Step`, `LLMCall`, `ToolCall`, `MCPCall`,
+  `TokenUsage`, `Content`), the immutable exporter-facing `Record` +
+  `LifecycleEvent` + `ExportResult` + `EventType`, the `RunStatus`/`Kind` enums,
+  ULID/W3C id helpers, and the four `runtime_checkable` SPIs (`TelemetryExporter`,
+  `Interceptor`, `EventListener`, `PricingProvider`). 100% test coverage.
