@@ -12,6 +12,7 @@ from .context import (
     new_run_id,
     new_span_id,
 )
+from .cost import PricingTable, TablePricingProvider
 from .decorator import instrument
 from .exporters import ConsoleExporter, InMemoryExporter
 from .facade import Telemetry, configure, telemetry
@@ -36,10 +37,12 @@ __all__ = [
     "MCPScope",
     "MetricConfig",
     "MetricsSubsystem",
+    "PricingTable",
     "RunScope",
     "Runtime",
     "RuntimeConfig",
     "StepScope",
+    "TablePricingProvider",
     "Telemetry",
     "TelemetryContext",
     "ToolScope",

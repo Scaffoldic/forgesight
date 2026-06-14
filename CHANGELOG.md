@@ -40,3 +40,8 @@ All notable changes to ForgeSight are documented here. The format follows
   histograms (`gen_ai.client.token.usage` by token type, operation/workflow/mcp
   durations) with the spec's exact bucket boundaries — all derived automatically from
   the runtime's record stream. `opentelemetry-sdk` added to core.
+- **feat-006 — cost model & pricing registry.** `TablePricingProvider` over a
+  vendored, refreshable LiteLLM-style table (input/output/cache/reasoning rates +
+  tiered context pricing); model-name resolution with aliases + overrides; default in
+  `configure()`. Cost emitted as `forgesight.usage.cost_usd`, rolled into
+  `forgesight.agent.cost_total`; unknown models degrade to `cost=None`.
