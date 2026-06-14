@@ -36,7 +36,7 @@ def test_resolve_builtin_exporter_by_name() -> None:
 
 def test_unknown_exporter_fails_fast() -> None:
     with pytest.raises(ExporterNotRegisteredError, match=r"forgesight\.exporters"):
-        configure(exporters=["langfuse"])  # not installed
+        configure(exporters=["no-such-exporter-xyz"])  # not registered anywhere
     reset_runtime()
 
 

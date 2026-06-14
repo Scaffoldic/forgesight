@@ -1,0 +1,33 @@
+[project]
+name = "forgesight-langfuse"
+version = "0.1.0"
+description = "ForgeSight Langfuse exporter — OTLP ingest with native langfuse.* observation mapping."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "langfuse", "llm", "ai-agents", "forgesight", "otlp"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core", "forgesight-otel"]
+
+[project.entry-points."forgesight.exporters"]
+langfuse = "forgesight_langfuse.exporter:LangfuseExporter"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_langfuse"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }
+forgesight-otel = { workspace = true }
