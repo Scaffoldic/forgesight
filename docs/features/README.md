@@ -44,7 +44,7 @@
 
 | ID | Title | Status | Target | Languages | Package(s) |
 |---|---|---|---|---|---|
-| **feat-001** | Core domain model & SPI contracts (`AgentRun`/`LLMCall`/`ToolCall`/`MCPCall`/`WorkflowRun`/`Step` + `TelemetryExporter`/`Interceptor`/`EventListener`/`PricingProvider`) | proposed | 0.1 | both | `forgesight-api` |
+| **feat-001** | Core domain model & SPI contracts (`AgentRun`/`LLMCall`/`ToolCall`/`MCPCall`/`WorkflowRun`/`Step` + `TelemetryExporter`/`Interceptor`/`EventListener`/`PricingProvider`) | shipped | 0.1 | both | `forgesight-api` |
 | **feat-002** | Telemetry runtime & instrumentation API (context propagation, span tree, `agent_run`/`step`/`llm_call`/`tool_call`/`mcp_call`, decorators) | proposed | 0.1 | both | `forgesight-core`, `forgesight` |
 | **feat-003** | Async export pipeline (bounded queue, batching, fault isolation, flush/shutdown) | proposed | 0.1 | both | `forgesight-core` |
 | **feat-004** | OpenTelemetry exporter & GenAI semantic-convention mapping (OTLP traces+metrics; W3C propagation) | proposed | 0.1 | both | `forgesight-otel` |

@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-001 |
 | **Title** | Core domain model & SPI contracts |
-| **Status** | `in-progress` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -636,7 +636,7 @@ anchor; TS targets it from the start of its 0.x line (Python ships first per
 
 ## Implementation status
 
-**Status: in-progress (Python).** Landing on `feat/001-core-domain-model-and-contracts`.
+**Status: shipped (Python).** Landed via [PR #1](https://github.com/Scaffoldic/forgesight/pull/1) on `main` (CI green on Python 3.11/3.12/3.13, 100% coverage).
 
 | Module | Scope |
 |---|---|
