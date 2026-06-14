@@ -1,0 +1,27 @@
+[project]
+name = "forgesight-api"
+version = "0.1.0"
+description = "ForgeSight — locked telemetry contracts (domain model + SPIs). Vendor-neutral, zero backend deps."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "telemetry", "ai-agents", "opentelemetry", "llm"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+# The leaf of the dependency graph: stdlib + typing-extensions only (P1 / NFR-6).
+dependencies = ["typing-extensions>=4.10"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_api"]

@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+
+# venv / tooling
+.venv/
+venv/
+.uv/
+uv.lock
+
+# test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# local-only session working state (per the workspace pipeline)
+.claude/state/

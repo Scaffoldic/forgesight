@@ -1,0 +1,33 @@
+# Local pre-commit hooks. Install with: uv run pre-commit install
+# Mirrors CI: format, lint, type, test+coverage. Never bypass with --no-verify
+# unless explicitly authorised for a specific commit (AGENTS.md rule).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: mypy
+        name: mypy --strict
+        entry: bash -c 'uv run mypy packages/*/src'
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest + coverage
+        entry: uv run pytest
+        language: system
+        types: [python]
+        pass_filenames: false

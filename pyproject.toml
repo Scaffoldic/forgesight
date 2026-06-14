@@ -1,0 +1,65 @@
+# ForgeSight — uv workspace root (virtual; not a package itself).
+# Member packages live under packages/* (three tiers + integrations, per ADR-0002).
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "mypy>=1.13",
+    "ruff>=0.8",
+]
+
+# ---------------------------------------------------------------------------
+# ruff — format + lint
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["packages/*/src", "packages/*/tests"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101"]
+
+# ---------------------------------------------------------------------------
+# mypy — strict (P5/AGENTS rule 8)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_reexport = false
+
+# ---------------------------------------------------------------------------
+# pytest + coverage — gate ≥ 90% (NFR-7)
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages"]
+addopts = "-q --cov --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.run]
+branch = true
+# Each feature that introduces a package appends its import name here.
+source_pkgs = ["forgesight_api"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
