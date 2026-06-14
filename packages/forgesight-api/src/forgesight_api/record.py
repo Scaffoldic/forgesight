@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from types import MappingProxyType
 
-from .model import Kind, LLMCall, MCPCall, RunStatus, ToolCall
+from .model import ErrorInfo, Kind, LLMCall, MCPCall, RunStatus, ToolCall
 
 _NANOS_PER_MS = 1_000_000
 _EMPTY: Mapping[str, object] = MappingProxyType({})
@@ -42,6 +42,7 @@ class Record:
     llm: LLMCall | None = None
     tool: ToolCall | None = None
     mcp: MCPCall | None = None
+    error: ErrorInfo | None = None  # set on a failed operation (feat-009)
 
     @property
     def duration_ms(self) -> float | None:

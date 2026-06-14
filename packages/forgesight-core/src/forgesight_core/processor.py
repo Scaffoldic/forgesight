@@ -61,6 +61,8 @@ class RuntimeConfig:
     sample_rate: float = 1.0
     sync_export: bool = False  # inline export (deterministic) vs the async worker
     deliver_step_events: bool = True  # suppress STEP_* events on hot loops when False
+    stack_capture_depth: int = 20  # frames formatted into ErrorInfo.stacktrace; 0 ⇒ none
+    capture_stacktrace: bool = True  # capture the traceback on a failed operation
 
     def __post_init__(self) -> None:
         if self.max_export_batch_size > self.max_queue_size:

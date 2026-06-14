@@ -129,7 +129,11 @@ class SemConvMapper:
                 attrs[GEN_AI_TOOL_DESCRIPTION] = record.tool.description
         elif record.kind is Kind.MCP and record.mcp is not None:
             self._map_mcp(record, attrs)
-        if record.status not in _OK_STATUSES:
+        if record.error is not None:
+            attrs[ERROR_TYPE] = record.error.error_type
+            if record.error.code is not None:
+                attrs["error.code"] = record.error.code
+        elif record.status not in _OK_STATUSES:
             attrs[ERROR_TYPE] = record.status.value
         return attrs
 

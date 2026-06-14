@@ -54,3 +54,8 @@ All notable changes to ForgeSight are documented here. The format follows
   `PIIRedactionInterceptor` (key + regex redaction, recursive, runs once before
   fan-out so every backend is scrubbed). Custom interceptors mutate/redact/veto via
   the SPI; a raising interceptor is isolated.
+- **feat-009 — error & exception tracking.** Captures exception type/message/stack/
+  code into an `ErrorInfo` on the record, sets `RunStatus.ERROR` + the stable
+  `error.type` span attribute, emits `RUN_FAILED`, and **re-raises** (never swallows,
+  FR-7). `record_error()` opt-out for handled paths; `stack_capture_depth` /
+  `capture_stacktrace` config.

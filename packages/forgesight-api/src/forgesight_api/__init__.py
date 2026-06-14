@@ -14,6 +14,7 @@ from .ids import is_valid_trace_id, is_valid_ulid, new_trace_id, new_ulid
 from .model import (
     AgentRun,
     Content,
+    ErrorInfo,
     Kind,
     LLMCall,
     MCPCall,
@@ -31,6 +32,7 @@ __version__ = "0.1.0"
 __all__ = [
     "AgentRun",
     "Content",
+    "ErrorInfo",
     "EventListener",
     "EventType",
     "ExportResult",
