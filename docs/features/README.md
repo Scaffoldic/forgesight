@@ -52,7 +52,7 @@
 | **feat-006** | Cost model & pricing registry (`PricingProvider`, tiered/cache pricing, refreshable table) | shipped | 0.1 | both | `forgesight-core` |
 | **feat-007** | Event bus & lifecycle events (`EventListener` SPI; `RUN_STARTED`…`MCP_EXECUTED`) | shipped | 0.1 | both | `forgesight-core` |
 | **feat-008** | Interceptors — PII redaction, content-capture gating, custom policy/audit | shipped | 0.1 | both | `forgesight-core` |
-| **feat-009** | Error & exception tracking (type/message/stack/code; span status + `error.type`) | proposed | 0.1 | both | `forgesight-core` |
+| **feat-009** | Error & exception tracking (type/message/stack/code; span status + `error.type`) | shipped | 0.1 | both | `forgesight-core` |
 | **feat-010** | Configuration & zero-config bootstrap (`configure()`, env + YAML, entry-point auto-load) | proposed | 0.1 | both | `forgesight-core`, `forgesight` |
 | **feat-011** | Testing & conformance harness (in-memory exporter, span-tree assertions, per-SPI conformance suites) | proposed | 0.1 | both | `forgesight-core`, `forgesight-testing` |
 

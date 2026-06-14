@@ -54,6 +54,21 @@ class Kind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ErrorInfo:
+    """Captured on any failed operation (FR-7).
+
+    Carried on the :class:`~forgesight_api.record.Record`; mapped to the stable OTel
+    ``error.type`` attribute + an error span status, and redacted via interceptors
+    (P7). The exact stacktrace format is not a contract.
+    """
+
+    error_type: str  # exception class name → error.type (stable OTel attr)
+    message: str  # str(exc); redactable content
+    stacktrace: str | None = None  # formatted traceback, depth-limited (config)
+    code: str | None = None  # provider/domain error code when present
+
+
+@dataclass(frozen=True, slots=True)
 class TokenUsage:
     """Token counts for one LLM call.
 

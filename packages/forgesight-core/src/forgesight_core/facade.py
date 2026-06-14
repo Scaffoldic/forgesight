@@ -33,6 +33,8 @@ def configure(
     max_export_batch_size: int | None = None,
     schedule_delay_millis: int | None = None,
     deliver_step_events: bool | None = None,
+    stack_capture_depth: int | None = None,
+    capture_stacktrace: bool | None = None,
     exporters: Sequence[TelemetryExporter] | None = None,
     interceptors: Sequence[Interceptor] | None = None,
     listeners: Sequence[EventListener] | None = None,
@@ -61,6 +63,10 @@ def configure(
         config.schedule_delay_millis = schedule_delay_millis
     if deliver_step_events is not None:
         config.deliver_step_events = deliver_step_events
+    if stack_capture_depth is not None:
+        config.stack_capture_depth = stack_capture_depth
+    if capture_stacktrace is not None:
+        config.capture_stacktrace = capture_stacktrace
     config.__post_init__()  # re-validate after applying overrides
     rt = reset_runtime(config)
     for exporter in exporters if exporters is not None else [ConsoleExporter()]:

@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-009 |
 | **Title** | Error & exception tracking (type/message/stack/code; span status + `error.type`) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1 |
@@ -395,3 +395,76 @@ format (Python `traceback` vs JS `Error.stack`), and the exception base type
 - feat-001 (`RunStatus`, the `Record` model), feat-002 (the context managers that record + re-raise)
 - feat-007 (`RUN_FAILED` lifecycle event), feat-008 (redaction of error content), feat-005 (`agent_failures_total`)
 - OpenTelemetry trace semantic conventions — recording exceptions + `error.type`
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #9 (CI green on Python 3.11/3.12/3.13).
+The re-raise + `RunStatus.ERROR` + `RUN_FAILED` were already in place (feat-002/007);
+this adds the captured detail. 163 tests workspace-wide, **97.7% coverage**,
+`mypy --strict` + `ruff` clean.
+
+| Area | What landed |
+|---|---|
+| `ErrorInfo` | New frozen value (`error_type`, `message`, `stacktrace`, `code`) in `forgesight-api`; optional `Record.error` field (minor add to feat-001). |
+| Auto-capture | Scope `__exit__` on an exception builds `ErrorInfo` (class name / `str(exc)` / depth-bounded traceback / `code` from kwarg or `exc.code`), attaches it to the record, sets `RunStatus.ERROR`, and **re-raises** (FR-7). |
+| `record_error(exc, *, code=…)` | On every scope — records without re-raising (the opt-out for caught-and-handled paths). |
+| Config | `stack_capture_depth` (default 20; 0 ⇒ no stack) + `capture_stacktrace` (default true). |
+| OTel mapping | `error.type` = the exception class (`record.error.error_type`), with `error.code`; falls back to the status value when there's no `ErrorInfo`. |
+
+### Deviations from this spec
+
+- **`record_error` lives on all scopes** (via the shared base), not only the run
+  handle — recording an error on a leaf scope marks that scope errored.
+- **Error message/stack are not yet routed through `PIIRedactionInterceptor`.** The
+  redaction interceptor scans `Record.attributes` + `LLMCall.params`, not
+  `Record.error` — so secrets in an exception message/stack are **not** auto-redacted
+  yet. Mitigate with `capture_stacktrace=False` / `capture_content=False`.
+  Routing `ErrorInfo` through redaction is a feat-008 follow-up.
+- **`error.code`** is emitted as an extra span attribute (the spec mapped only
+  `error.type` + status); harmless, structural.
+
+### Not yet implemented
+
+`ErrorInfo` redaction via the interceptor chain; content-capture gating of the error
+*message body* (only `llm.content` is gated today); `sdk` error metrics beyond
+`agent_failures_total` (feat-005); TypeScript port.
+
+## Runbook
+
+### What happens when my agent throws?
+
+Automatic: the SDK records the exception type/message/stack/code on the failing span,
+marks the run `ERROR`, emits `RUN_FAILED`, and **re-raises** — your own `except` still
+runs. Telemetry never changes control flow.
+
+```python
+try:
+    with af.telemetry.agent_run("payments") as run, run.llm_call("anthropic", "m"):
+        raise RateLimitError("429", code="rate_limited")
+except RateLimitError:
+    backoff_and_retry()   # YOUR handler fires; the SDK did not swallow it
+```
+
+### How do I record an error I caught and handled (without re-raising)?
+
+```python
+with af.telemetry.agent_run("batch") as run:
+    try:
+        do_work()
+    except WorkError as exc:
+        run.record_error(exc, code="work_failed")   # records, does NOT re-raise
+        continue
+```
+
+### How do I limit stack capture (cost / leak control)?
+
+```python
+af.configure(stack_capture_depth=5)        # fewer frames
+af.configure(capture_stacktrace=False)     # type/message/code only, no stack
+```
+
+Note: today, secrets in an exception *message/stack* are not auto-redacted — prefer
+`capture_stacktrace=False` (or `capture_content=False`) for sensitive workloads until
+`ErrorInfo` redaction lands.

@@ -57,6 +57,7 @@ def _record(kind: Kind, name: str, **kw: object) -> Record:
         llm=kw.pop("llm", None),  # type: ignore[arg-type]
         tool=kw.pop("tool", None),  # type: ignore[arg-type]
         mcp=kw.pop("mcp", None),  # type: ignore[arg-type]
+        error=kw.pop("error", None),  # type: ignore[arg-type]
     )
 
 
@@ -208,3 +209,18 @@ def test_mcp_session_and_protocol_attributes() -> None:
     attrs = MAPPER.attributes(_record(Kind.MCP, "tools/list", mcp=mcp))
     assert attrs["mcp.session.id"] == "s1"
     assert attrs["mcp.protocol.version"] == "2025-06-18"
+
+
+def test_error_info_maps_to_error_type_and_code() -> None:
+    from forgesight_api import ErrorInfo
+
+    rec = _record(
+        Kind.LLM,
+        "m",
+        status=RunStatus.ERROR,
+        llm=LLMCall(provider="anthropic", request_model="m"),
+        error=ErrorInfo(error_type="RateLimitError", message="429", code="rate_limited"),
+    )
+    attrs = MAPPER.attributes(rec)
+    assert attrs[ERROR_TYPE] == "RateLimitError"  # exception class, not the status value
+    assert attrs["error.code"] == "rate_limited"

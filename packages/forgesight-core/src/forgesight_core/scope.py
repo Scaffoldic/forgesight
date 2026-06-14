@@ -15,10 +15,13 @@ from __future__ import annotations
 
 import contextvars
 import time
+import traceback
+from dataclasses import replace
 from types import MappingProxyType, TracebackType
 from typing import TYPE_CHECKING, Literal
 
 from forgesight_api import (
+    ErrorInfo,
     EventType,
     Kind,
     LifecycleEvent,
@@ -40,7 +43,7 @@ from .context import (
 )
 
 if TYPE_CHECKING:
-    from .processor import Runtime
+    from .processor import Runtime, RuntimeConfig
 
 _NANOS_PER_MS = 1_000_000
 _STEP_EVENTS = frozenset({EventType.STEP_STARTED, EventType.STEP_COMPLETED})
@@ -79,6 +82,16 @@ class _Scope:
         self._parent_ctx: TelemetryContext | None = None
         self._bound_ctx: TelemetryContext | None = None
         self._token: contextvars.Token[TelemetryContext | None] | None = None
+        self._error: ErrorInfo | None = None
+
+    def record_error(self, exc: BaseException, *, code: str | None = None) -> None:
+        """Capture ``exc`` onto this scope and mark it errored — does NOT re-raise.
+
+        For caught-and-handled paths. The context managers call the equivalent on
+        ``__exit__`` and then re-raise (FR-7).
+        """
+        self._error = _error_info(exc, code, self._rt.config)
+        self._status = RunStatus.ERROR
 
     # --- context construction: overridden by container vs leaf -------------
     def _make_context(self, parent: TelemetryContext | None) -> TelemetryContext:
@@ -117,8 +130,12 @@ class _Scope:
         self._end = _now()
         if self._status is RunStatus.RUNNING:
             self._status = RunStatus.ERROR if exc is not None else RunStatus.OK
+        if exc is not None and self._error is None:
+            self._error = _error_info(exc, None, self._rt.config)
         try:
             record = self._build_record()
+            if self._error is not None:
+                record = replace(record, error=self._error)
             self._rt.emit_record(record)
             if self._finish_event is not None:
                 event_type = self._finish_event
@@ -570,3 +587,24 @@ def _ms(start: int, end: int | None) -> float | None:
     if end is None:
         return None
     return (end - start) / _NANOS_PER_MS
+
+
+def _error_info(exc: BaseException, code: str | None, config: RuntimeConfig) -> ErrorInfo:
+    stacktrace: str | None = None
+    if config.capture_stacktrace and config.stack_capture_depth > 0:
+        stacktrace = "".join(
+            traceback.format_exception(
+                type(exc), exc, exc.__traceback__, limit=config.stack_capture_depth
+            )
+        )
+    resolved_code = code
+    if resolved_code is None:
+        raw = getattr(exc, "code", None)
+        if raw is not None:
+            resolved_code = str(raw)
+    return ErrorInfo(
+        error_type=type(exc).__name__,
+        message=str(exc),
+        stacktrace=stacktrace,
+        code=resolved_code,
+    )
