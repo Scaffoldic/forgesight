@@ -35,3 +35,8 @@ All notable changes to ForgeSight are documented here. The format follows
   pinned + version-stamped. W3C TraceContext inject/extract helpers. One package
   unlocks any OTLP backend (Datadog, Honeycomb, Jaeger, Tempo, Phoenix, …). Metrics
   follow in feat-005.
+- **feat-005 — metrics & instruments.** FR-6 product metrics under `forgesight.*`
+  (runs / failures / cost / duration / tool & mcp invocations) plus the OTel GenAI
+  histograms (`gen_ai.client.token.usage` by token type, operation/workflow/mcp
+  durations) with the spec's exact bucket boundaries — all derived automatically from
+  the runtime's record stream. `opentelemetry-sdk` added to core.

@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-005 |
 | **Title** | Metrics & instruments (FR-6 product metrics + GenAI histograms) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -322,3 +322,85 @@ Python first (0.1); TS by 0.4 (architecture §10).
 - [`../adr/0001-opentelemetry-first-canonical-model.md`](../adr/0001-opentelemetry-first-canonical-model.md), [`../adr/0005-cost-as-namespaced-extension.md`](../adr/0005-cost-as-namespaced-extension.md)
 - feat-002 (runtime — record source), feat-004 (OTLP metric export), feat-006 (cost), feat-012 (Prometheus pull)
 - Requirements FR-6
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #5 (CI green on Python 3.11/3.12/3.13) in
+`forgesight-core` (`forgesight_core.metrics`). 124 tests workspace-wide, **97.5%
+coverage**, `mypy --strict` + `ruff` clean.
+
+| Module | Scope |
+|---|---|
+| `metrics/config.py` | `MetricConfig` (`enabled` / `export_interval_millis` / `enabled_instruments`) + validation. |
+| `metrics/instruments.py` | `MetricsSubsystem`: a local OTel `MeterProvider` with the GenAI histograms' **exact** spec buckets (via `View` + `ExplicitBucketHistogramAggregation`), the six `forgesight.*` product instruments, `record(Record)` derivation, and a default `InMemoryMetricReader`. Bucket constants + `KNOWN_INSTRUMENTS`. |
+| wiring | `Runtime.metrics`; `emit_record` calls `metrics.record(record)` **before sampling** (metrics count all runs); `configure(metrics=…, metric_reader=…)`; `shutdown()` shuts the provider down. |
+
+Both metric families ship: `forgesight.*` product metrics (runs / failures / cost /
+duration / tool & mcp invocations) and the `gen_ai.*` histograms (token usage filtered
+by `gen_ai.token.type`, operation/workflow/mcp durations) with the mandated buckets.
+`opentelemetry-sdk` is now a `forgesight-core` dependency (vendor-neutral, P4).
+
+### Deviations from this spec
+
+- **`forgesight.*` namespace** throughout (the spec prose's `agentforge.*` was a
+  pre-rename leftover; the instrument table already used `forgesight.*`).
+- **`record(Record)` dispatch** instead of the spec's per-submodel
+  `record_run/record_llm_call/…` signatures — the `Record` carries the run/status
+  context the submodels lack, and keeps one call site in the runtime.
+- **`forgesight.agent.cost_total` is keyed by `gen_ai.provider.name` only** (not
+  `agent.name`) — an LLM `Record` doesn't carry the agent name; agent-level cost
+  attribution is available on spans via business metadata (feat-022 closes the loop).
+- **A local (non-global) `MeterProvider`** is built per `configure()` — avoids OTel's
+  "overriding global MeterProvider" warning and keeps runtimes isolated; default
+  reader is `InMemoryMetricReader` (collectable via `runtime.metrics.collect()`).
+- **Transport deferred to integrations** — push OTLP (feat-004 follow-up) / pull
+  Prometheus (feat-012) inject a `MetricReader`; this feature owns the instruments +
+  the default in-memory reader (spec §9).
+
+### Not yet implemented
+
+Push `PeriodicExportingMetricReader` wiring in `forgesight-otel`; Prometheus pull
+reader (feat-012); agent-name on `cost_total`; TypeScript port.
+
+## Runbook
+
+### How do I get fleet metrics? (I emit nothing extra)
+
+Metrics derive from the runs you already instrument — just keep them enabled (default):
+
+```python
+import forgesight
+forgesight.configure()   # metrics on by default
+# now every run records forgesight.agent.runs_total / .cost_total / .duration_ms,
+# gen_ai.client.token.usage (by token type), gen_ai.client.operation.duration, etc.
+```
+
+### How do I inspect metrics in a test?
+
+```python
+from forgesight import configure, get_runtime, telemetry
+configure(sync_export=True)
+with telemetry.agent_run("c") as run, run.llm_call("anthropic", "m") as call:
+    call.record_usage(input=100, output=50)
+data = get_runtime().metrics.collect()   # OTel MetricsData from the in-memory reader
+```
+
+### How do I select a subset of instruments, or turn metrics off?
+
+```python
+from forgesight import configure
+from forgesight_core import MetricConfig
+
+configure(metrics=MetricConfig(enabled_instruments=frozenset({"forgesight.agent.runs_total"})))
+configure(metrics=MetricConfig(enabled=False))   # off entirely
+```
+
+An unknown instrument name fails fast at `configure()`.
+
+### Where does cost show up in metrics?
+
+`forgesight.agent.cost_total` (USD counter), summed from each LLM call's
+`forgesight.usage.cost_usd` (feat-006). It is never a `gen_ai.*` metric (OTel defines
+no cost — ADR-0005).
