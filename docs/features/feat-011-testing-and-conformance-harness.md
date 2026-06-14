@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-011 |
 | **Title** | Testing & conformance harness (in-memory exporter, span-tree assertions, per-SPI conformance suites) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1 |
@@ -439,3 +439,77 @@ anchor — TS implementations are measured against the same invariants
 - feat-001 (the SPIs + `Record` the suites exercise), feat-002 (runtime), feat-003 (pipeline + flush)
 - feat-006/007/008 (the pricing / listener / interceptor suites apply to their shipped + third-party implementations)
 - feat-010 (`in-memory` exporter as the zero-config non-TTY default)
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #11 (CI green on Python 3.11/3.12/3.13) in
+`forgesight_core.testing` (+ `forgesight.testing` re-export). 186 tests workspace-wide,
+**96.9% coverage**, `mypy --strict` + `ruff` clean. This completes the **0.1 core
+(feat-001 … feat-011)**.
+
+| Area | What landed |
+|---|---|
+| Agent-author surface | `InMemoryExporter` (re-exported), `SpanData` + `build_spans` (record tree by span/parent ids), `assert_span_tree` (subset match, sibling order-insensitive), `find_span`/`find_spans` (by `op`/`name`), and `llm_call_factory`/`tool_call_factory`/`token_usage_factory`. |
+| Conformance suites (P10/NFR-7) | `run_exporter_conformance` / `run_interceptor_conformance` / `run_event_listener_conformance` / `run_pricing_conformance` — each takes a factory and asserts the SPI's behavioural invariants. |
+| Dogfooding + meta-tests | Every shipped impl (`InMemory`/`Console` exporters, content gate, PII redactor, default pricing) passes its suite in CI; **known-bad** impls (raising exporter, raise/zero-on-unknown pricer) are proven to **fail** their suite. |
+
+### Deviations from this spec
+
+- **Conformance suites ship in `forgesight_core.testing.conformance`** (re-exported via
+  `forgesight.testing.conformance`), not a separate `forgesight-testing` dev package.
+  The **pytest plugin + fixtures** (`af_sink`, `af_runtime`) are **deferred** to that
+  follow-up package.
+- **`SpanData` is record-backed.** It exposes `op`/`name`/`status`/`attributes` +
+  `.record` (with the typed `llm`/`tool`/`mcp` sub-models). `assert_span_tree` asserts
+  the **domain** tree (kind/op/name + business attributes); `gen_ai.*` attribute
+  assertions use the `forgesight-otel` `InMemorySpanExporter` path (feat-004 tests).
+- **No `InMemoryExporter.spans` property** — use `build_spans(sink.records)` /
+  `assert_span_tree(sink, …)`.
+
+### Not yet implemented
+
+The `forgesight-testing` package + pytest plugin/fixtures; the `gen_ai.*`-attr form of
+`assert_span_tree`; TypeScript port.
+
+## Runbook
+
+### How do I assert what my agent recorded?
+
+```python
+import forgesight as af
+from forgesight.testing import InMemoryExporter, assert_span_tree, find_span
+
+sink = InMemoryExporter()
+af.configure(exporters=[sink], sync_export=True)   # synchronous, deterministic
+with af.telemetry.agent_run("classifier", version="1.0.0") as run:
+    with run.step("react-1"), run.llm_call("anthropic", "claude-sonnet-4-5") as call:
+        call.record_usage(input=120, output=30)
+
+assert_span_tree(sink, {
+    "op": "invoke_agent", "name": "classifier",
+    "children": [{"op": "step", "name": "react-1", "children": [{"op": "chat"}]}],
+})
+chat = find_span(sink, op="chat")
+assert chat.record.llm.usage.input == 120
+assert chat.record.llm.cost_usd is not None
+```
+
+(For the async pipeline call `af.get_runtime().force_flush()` before asserting.)
+
+### How do I prove my custom exporter honors the contract?
+
+```python
+from forgesight.testing.conformance import run_exporter_conformance
+from my_pkg import ClickHouseExporter
+
+def test_clickhouse_conformance():
+    run_exporter_conformance(lambda: ClickHouseExporter(dsn="memory://"))
+```
+
+Green = your exporter never raises out of `export` (P6), has idempotent
+flush/shutdown, and handles batches + post-shutdown calls. The same shape exists for
+`run_interceptor_conformance`, `run_event_listener_conformance`, and
+`run_pricing_conformance` — the public bar an integration meets to call itself
+conformant (P10).

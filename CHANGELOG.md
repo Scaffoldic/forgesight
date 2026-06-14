@@ -64,3 +64,8 @@ All notable changes to ForgeSight are documented here. The format follows
   named exporters/interceptors/listeners/pricing resolved via `forgesight.<group>`
   entry points + in-process `register()`; fail-fast `*NotRegisteredError` on unknown
   names. (Dataclass-based config; `pyyaml` added to core.)
+- **feat-011 — testing & conformance harness.** `forgesight.testing`: `InMemoryExporter`,
+  `assert_span_tree` / `find_span` / `find_spans`, record factories, and the four
+  per-SPI conformance suites (`run_*_conformance`) — the executable contract every
+  exporter/interceptor/listener/pricing-provider must pass (P10). **Completes the 0.1
+  core (feat-001 … feat-011).**
