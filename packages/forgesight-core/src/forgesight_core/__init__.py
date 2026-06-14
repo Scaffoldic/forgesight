@@ -16,6 +16,7 @@ from .cost import PricingTable, TablePricingProvider
 from .decorator import instrument
 from .exporters import ConsoleExporter, InMemoryExporter
 from .facade import Telemetry, configure, telemetry
+from .interceptors import ContentCaptureGate, PIIRedactionInterceptor
 from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import (
@@ -32,11 +33,13 @@ __version__ = "0.1.0"
 
 __all__ = [
     "ConsoleExporter",
+    "ContentCaptureGate",
     "InMemoryExporter",
     "LLMScope",
     "MCPScope",
     "MetricConfig",
     "MetricsSubsystem",
+    "PIIRedactionInterceptor",
     "PricingTable",
     "RunScope",
     "Runtime",

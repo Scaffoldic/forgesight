@@ -155,7 +155,7 @@ def test_configure_applies_all_overrides() -> None:
     assert rt.config.max_queue_size == 100
     assert rt.config.max_export_batch_size == 50
     assert rt.config.schedule_delay_millis == 20
-    assert len(rt.interceptors) == 1
+    assert len(rt.interceptors) == 2  # ContentCaptureGate is always prepended + the custom one
     assert len(rt.listeners) == 1
     assert rt.pricing is not None
     reset_runtime()

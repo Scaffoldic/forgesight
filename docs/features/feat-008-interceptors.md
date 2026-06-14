@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-008 |
 | **Title** | Interceptors — PII redaction, content-capture gating, custom policy/audit |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1 |
@@ -456,3 +456,78 @@ the host language's standard regex). Python lands first (0.1).
 - feat-001 (the `Interceptor` SPI + `Record`), feat-002 (the runtime + hot path)
 - feat-020 (cost budgets & governance — a `BudgetInterceptor` built on this SPI)
 - feat-011 (`run_interceptor_conformance`)
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #8 (CI green on Python 3.11/3.12/3.13) in
+`forgesight-core` (`forgesight_core.interceptors`). The `Interceptor` SPI + chain +
+veto/isolation were already in place (feat-001/002/003); this ships the built-ins.
+155 tests workspace-wide, **97.6% coverage**, `mypy --strict` + `ruff` clean.
+
+| Module | Scope |
+|---|---|
+| `interceptors/content_gate.py` | `ContentCaptureGate` — strips `LLMCall.content` when `capture_content` is off; always prepended by `configure()` (P7/ADR-0007); fails closed. |
+| `interceptors/pii.py` | `PIIRedactionInterceptor` — case-insensitive substring key match (recursing into nested dicts) + compiled regex patterns over string values; key match wins; redacts `Record.attributes` + `LLMCall.params`; bad regex fails fast at construction. |
+| wiring | `configure(interceptors=[…])` prepends the gate; the chain runs before the queue (feat-003), so one redaction covers every backend. |
+
+### Deviations from this spec
+
+- **Redaction targets `Record.attributes` + `LLMCall.params`** (and content via the
+  gate). `ToolCall`/`MCPCall` have no `arguments`/`result` fields in the v0.1 model,
+  so tool-arg redaction activates once those are captured (future) — the recursion is
+  already in place for nested dicts.
+- **Interceptor exceptions are logged but not yet a metric.** `_run_interceptors`
+  isolates a raising interceptor (skip + continue, fail-open); exposing
+  `sdk_interceptor_errors_total` is a feat-005 follow-up. Vetoes (`None`) increment
+  `Runtime.dropped`.
+- **YAML/entry-point interceptor name resolution is feat-010** (`configure` takes
+  instances now).
+
+### Not yet implemented
+
+Tool-arg/result redaction (pending model fields); `sdk_interceptor_errors_total`
+metric; YAML/entry-point resolution (feat-010); TypeScript port.
+
+## Runbook
+
+### How do I keep secrets/PII out of telemetry?
+
+Content is **off by default** (the gate strips it). Add redaction for structural
+fields:
+
+```python
+import forgesight as af
+from forgesight_core import PIIRedactionInterceptor
+
+af.configure(
+    capture_content=False,   # ContentCaptureGate strips message content (default)
+    interceptors=[PIIRedactionInterceptor(
+        redact_keys=("api_key", "password", "secret", "token", "authorization", "ssn"),
+        redact_patterns=(r"\b\d{3}-\d{2}-\d{4}\b",),   # US SSN in any string value
+    )],
+)
+```
+
+Redaction runs once, before fan-out — so the secret is gone from **every** backend.
+
+### How do I drop or tag records by policy?
+
+Implement the SPI: return the record, a mutated copy, or `None` to drop it.
+
+```python
+from forgesight_api import Interceptor, Record
+
+class DropTestTenant:
+    def intercept(self, record: Record) -> Record | None:
+        return None if record.attributes.get("tenant") == "test-tenant" else record
+
+af.configure(interceptors=[DropTestTenant()])   # dropped records are counted, never exported
+```
+
+### Will a bad interceptor crash my run?
+
+No. A raising interceptor is skipped for that record and the chain continues (fail-open,
+loudly logged) — the run and sibling interceptors are unaffected (P6). The content gate
+runs first and fails *closed*, so the security-critical case is the backstop.

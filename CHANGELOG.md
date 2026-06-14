@@ -49,3 +49,8 @@ All notable changes to ForgeSight are documented here. The format follows
   `RUN_STARTED`…`MCP_EXECUTED` to registered `EventListener`s; `LifecycleEvent`
   enriched with `trace_id`/`span_id`; `deliver_step_events` toggle; listener-error
   counter. A raising listener never affects the run or siblings.
+- **feat-008 — interceptors.** Built-in `ContentCaptureGate` (secure-by-default:
+  strips content unless `capture_content` is on; always prepended) and
+  `PIIRedactionInterceptor` (key + regex redaction, recursive, runs once before
+  fan-out so every backend is scrubbed). Custom interceptors mutate/redact/veto via
+  the SPI; a raising interceptor is isolated.
