@@ -14,6 +14,7 @@ from opentelemetry.sdk.metrics.export import MetricReader
 
 from forgesight_api import EventListener, Interceptor, PricingProvider, TelemetryExporter
 
+from .cost import TablePricingProvider
 from .exporters import ConsoleExporter
 from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
@@ -34,6 +35,7 @@ def configure(
     interceptors: Sequence[Interceptor] | None = None,
     listeners: Sequence[EventListener] | None = None,
     pricing: PricingProvider | None = None,
+    pricing_overrides: dict[str, dict[str, object]] | None = None,
     metrics: MetricConfig | None = None,
     metric_reader: MetricReader | None = None,
 ) -> Runtime:
@@ -63,7 +65,13 @@ def configure(
         rt.add_interceptor(interceptor)
     for listener in listeners or ():
         rt.add_listener(listener)
-    rt.set_pricing(pricing)
+    # Resolution order (cost-model §4.1): provider-supplied cost (set_cost) > a
+    # caller-registered provider > the vendored table > None. Default to the table.
+    rt.set_pricing(
+        pricing
+        if pricing is not None
+        else TablePricingProvider.from_vendored(overrides=pricing_overrides)
+    )
     metric_config = metrics if metrics is not None else MetricConfig()
     if metric_config.enabled:
         rt.metrics = MetricsSubsystem(metric_config, metric_reader)

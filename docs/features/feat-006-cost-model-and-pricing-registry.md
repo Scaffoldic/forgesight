@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-006 |
 | **Title** | Cost model & pricing registry (`PricingProvider`, tiered/cache pricing, refreshable table) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -354,3 +354,85 @@ TS by 0.4.
 - [`../adr/0005-cost-as-namespaced-extension.md`](../adr/0005-cost-as-namespaced-extension.md), [`../adr/0006-protocol-spi-as-stable-surface.md`](../adr/0006-protocol-spi-as-stable-surface.md)
 - feat-001 (`PricingProvider` SPI + `TokenUsage`), feat-002 (runtime — token source), feat-005 (`agent.cost_total` rollup), feat-020 (budgets — builds on this)
 - LiteLLM pricing map, `simonw/llm-prices`, `pydantic/genai-prices`
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #6 (CI green on Python 3.11/3.12/3.13) in
+`forgesight-core` (`forgesight_core.cost`). 137 tests workspace-wide, **97.6%
+coverage**, `mypy --strict` + `ruff` clean.
+
+| Module | Scope |
+|---|---|
+| `cost/table.py` | `TablePricingProvider` (`PricingProvider`), `PricingTable` (model-name resolution: `provider/model` → `model` → alias), `ModelRates` (+ tiered `when` selection, cache/reasoning rates), `from_vendored` / `from_url` / `refresh` / `updated_at` / overrides. |
+| `cost/data/prices.json` | Vendored LiteLLM-style table (Anthropic / OpenAI / Google models with cache + tier rates). |
+| wiring | `configure(pricing=…, pricing_overrides=…)` defaults to the vendored table; runtime applies the resolution order (`set_cost` wins → caller provider → table → None) on LLM-scope exit → `forgesight.usage.cost_usd` → `forgesight.agent.cost_total` (feat-005). |
+
+### Deviations from this spec
+
+- **No separate `CostResolver` class.** The runtime (feat-002 `LLMScope`) already
+  applies the resolution order (provider-supplied `set_cost` wins; else
+  `runtime.pricing`); a `CostResolver` would just duplicate it.
+- **Automatic interval refresh not wired into `configure()`.** `from_url()` +
+  `refresh()` are available (and parse both the ForgeSight schema *and* flat LiteLLM
+  JSON), but the `cost.refresh_interval_s` background refresh is deferred to feat-010
+  (which reads the `cost:` YAML). The table is vendored + manually refreshable now.
+- **`from_vendored()` returns a fresh copy** of the parsed table so per-provider
+  `overrides` never leak into the shared cache.
+- **Token categories priced disjointly** (input / output / cache_read /
+  cache_creation / reasoning each × its own rate) — matches how providers report
+  separate counts (e.g. Anthropic).
+
+### Not yet implemented
+
+`configure()` wiring of `cost.pricing_source_url` / `refresh_interval_s` (feat-010);
+regex model-name patterns (exact + alias only for now); agent-name on the cost rollup;
+TypeScript port.
+
+## Runbook
+
+### How do I get cost? (it's automatic)
+
+Pass token counts; cost is computed from the vendored table and emitted as
+`forgesight.usage.cost_usd`:
+
+```python
+import forgesight
+forgesight.configure()   # ships TablePricingProvider over the vendored table
+with forgesight.telemetry.agent_run("c") as run:
+    with run.llm_call("anthropic", "claude-sonnet-4-5") as call:
+        call.record_usage(input=1200, output=300, cache_read=900)   # cost computed on exit
+```
+
+### How do I override rates or map a deployment name?
+
+```python
+forgesight.configure(pricing_overrides={
+    "anthropic/claude-sonnet-4-5": {"output_cost_per_token": 1.4e-05},  # negotiated rate
+    "azure/my-gpt4o-deployment": {"alias": "openai/gpt-4o"},            # map a deployment
+})
+```
+
+### How do I use my own pricing source?
+
+```python
+from forgesight_core import TablePricingProvider
+forgesight.configure(pricing=TablePricingProvider.from_url(
+    "https://raw.githubusercontent.com/BerriAI/litellm/<pinned>/model_prices_and_context_window.json"
+))
+# or a fully custom provider:
+class LivePricing:
+    def price(self, provider, model, usage): ...   # return USD or None
+forgesight.configure(pricing=LivePricing())
+```
+
+### What happens for an unknown model?
+
+Tokens are still recorded; `cost_usd` is `None` with a once-per-model DEBUG — graceful
+degrade, never an error (FR-9). Add it via `pricing_overrides` or a custom provider.
+
+### When does a provider's own cost win?
+
+Always. If you call `call.set_cost(0.012)` (e.g. from an API that returns cost), that
+value is used verbatim — the table is not consulted.
