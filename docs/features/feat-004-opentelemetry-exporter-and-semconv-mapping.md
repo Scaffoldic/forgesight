@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-004 |
 | **Title** | OpenTelemetry exporter & GenAI semantic-convention mapping (OTLP traces + metrics; W3C propagation) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -408,3 +408,85 @@ names (`TracerProvider`/`BatchSpanProcessor` vs the JS equivalents), `grpc` vs
 - [`../adr/0001-opentelemetry-first-canonical-model.md`](../adr/0001-opentelemetry-first-canonical-model.md), [`../adr/0004-pin-and-isolate-genai-semconv.md`](../adr/0004-pin-and-isolate-genai-semconv.md), [`../adr/0005-cost-as-namespaced-extension.md`](../adr/0005-cost-as-namespaced-extension.md), [`../adr/0007-content-capture-opt-in.md`](../adr/0007-content-capture-opt-in.md)
 - feat-001 (domain model + SPIs), feat-002 (runtime), feat-003 (pipeline); feat-005 (metrics), feat-006 (cost) for the values mapped here
 - OpenTelemetry GenAI semconv: <https://github.com/open-telemetry/semantic-conventions-genai>
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #4 (CI green on Python 3.11/3.12/3.13).
+New package `forgesight-otel`. 115 tests workspace-wide, **97.7% coverage**,
+`mypy --strict` + `ruff` clean.
+
+| Module | Scope |
+|---|---|
+| `forgesight_otel/semconv.py` | `SemConvMapper` (pure `Record` → span name / `SpanKind` / attributes) + all attribute-key constants + `SEMCONV_VERSION`/`SEMCONV_COMMIT` pinning. Cost → `forgesight.usage.cost_usd`; `gen_ai.provider.name` canonical; legacy `gen_ai.system` opt-in; content gated; `error.type` on failure. |
+| `forgesight_otel/exporter.py` | `OTelExporter` (`TelemetryExporter`): builds OTel `ReadableSpan`s carrying ForgeSight's own trace/span ids → OTLP. Injectable `span_exporter` for tests; lazy OTLP build for prod; `export` never raises (P6). |
+| `forgesight_otel/propagation.py` | W3C TraceContext `inject` / `extract` helpers for A2A/MCP hops. |
+| packaging | Entry point `forgesight.exporters → otel`; deps = `forgesight-core` + `opentelemetry-sdk` + `opentelemetry-exporter-otlp-proto-http`; **never a dep of core** (P1). |
+
+### Deviations from this spec
+
+- **Metrics deferred to feat-005.** Spec §9 already puts the instrument inventory in
+  feat-005; the OTLP metric-exporter wiring is moved there too so instruments + their
+  export land together. feat-004 ships the **span** path (the keystone) +
+  the semconv mapping + propagation.
+- **Default protocol `http/protobuf`** (not the spec's `grpc`) — avoids a hard
+  `grpcio` dependency (NFR-6 footprint). gRPC is the `forgesight-otel[grpc]` extra +
+  `protocol="grpc"`.
+- **`SEMCONV_COMMIT` is a placeholder pin** (`…@main` / `genai-dev-2026-06`) until a
+  concrete sha is chosen; the mapping is still isolated + version-stamped (ADR-0004).
+- **`error.type` is the `RunStatus` value** for now (e.g. `error`, `budget_exceeded`);
+  exception-type detail comes from feat-009.
+- **`SemConvMapper.metric_points` not implemented** (metrics → feat-005).
+
+### Not yet implemented
+
+OTLP metric exporter + GenAI metric instruments (feat-005); concrete semconv commit
+pin; the experimental `gen_ai.…inference.operation.details` event form; TypeScript port.
+
+## Runbook
+
+### How do I ship telemetry to my collector / a vendor?
+
+```bash
+pip install forgesight-otel
+```
+
+```python
+import forgesight
+from forgesight_otel import OTelExporter
+
+forgesight.configure(exporters=[OTelExporter(endpoint="http://otel-collector:4318")])
+```
+
+Any OTLP backend works through this one package — Datadog, Honeycomb, Jaeger, Grafana
+Tempo, SigNoz, New Relic, Arize Phoenix. Point `endpoint=` at the backend; swapping
+backends is a config change, not a code change.
+
+### How do I use gRPC instead of HTTP?
+
+```bash
+pip install "forgesight-otel[grpc]"
+```
+
+```python
+OTelExporter(endpoint="http://otel-collector:4317", protocol="grpc")
+```
+
+### Where does cost show up?
+
+On the LLM span as **`forgesight.usage.cost_usd`** (OTel defines no cost attribute, so
+it's a namespaced extension — never a `gen_ai.*` key). Token counts use the standard
+`gen_ai.usage.*` attributes.
+
+### How do I capture prompts/responses (and why are they missing)?
+
+They're **off by default** (P7). Opt in with `OTelExporter(capture_content=True)` — then
+`gen_ai.input.messages` / `gen_ai.output.messages` / `gen_ai.system_instructions` are
+emitted as JSON. Run the redaction interceptor (feat-008) first if the content may
+contain PII.
+
+### How do I keep traces stitched across an agent-to-agent call?
+
+Use the propagation helpers: the caller `inject(trace_id, span_id, headers)` before the
+hop; the callee `extract(headers)` and opens its span as a child — one end-to-end trace.
