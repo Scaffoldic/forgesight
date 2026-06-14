@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-002 |
 | **Title** | Telemetry runtime & instrumentation API |
-| **Status** | `proposed` |
+| **Status** | `in-progress` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1.0 |
@@ -558,3 +558,108 @@ per [ADR-0008](../adr/0008-python-first-multilanguage-parity.md).
 - Prior art: AgentForge `feat-009-observability` (run-id context propagation
   across nested async tasks); OpenLLMetry / OpenInference instrumentation
   surfaces.
+
+---
+
+## Implementation status
+
+**Status: in-progress (Python).** Landing on
+`feat/002-telemetry-runtime-and-instrumentation-api` — `forgesight-core` +
+`forgesight` facade. 79 tests across both packages, **96.5% coverage**,
+`mypy --strict` + `ruff` clean.
+
+| Module | Scope |
+|---|---|
+| `forgesight_core/context.py` | `TelemetryContext` (+`.child()` copy), `contextvars` get/set/reset, `new_run_id` (ULID), `new_span_id` (16-hex). |
+| `forgesight_core/scope.py` | `_Scope` (sync+async dunders, span-tree, status, events) → `RunScope`/`WorkflowScope`/`StepScope` (containers) + `LLMScope`/`ToolScope`/`MCPScope` (leaves); `current_run_scope()`; metadata scoping (FR-5); LLM pricing on exit. |
+| `forgesight_core/processor.py` | `Runtime` dispatch singleton: interceptor chain (drop/replace/isolate), fault-isolated fan-out to exporters, ordered event delivery, `force_flush`/`shutdown`, drop/failure counters. |
+| `forgesight_core/exporters.py` | `InMemoryExporter` (testing) + `ConsoleExporter` (zero-config default sink). |
+| `forgesight_core/facade.py` | `Telemetry` facade (`agent_run`/`workflow_run`/`current_run`) + minimal `configure()`. |
+| `forgesight_core/decorator.py` | `@instrument` (sync+async; agent/step/tool). |
+| `forgesight` | Facade package re-exporting `configure`/`telemetry`/`instrument`/`current_run`. |
+
+### Deviations from this spec
+
+- **Synchronous dispatch placeholder.** §9 puts the bounded async queue + worker in
+  feat-003. feat-002 ships a synchronous, fault-isolated `Runtime.emit_record`
+  (interceptors → fan-out) so the runtime is testable end-to-end now; feat-003
+  replaces the internals with the bounded queue + background worker behind the
+  same `emit_record`/`emit_event` surface.
+- **`InMemoryExporter` + `ConsoleExporter` shipped here**, not feat-003 — the
+  runtime needs a default sink and tests need an in-memory one. Architecture §5
+  places both in core; feat-003 will wrap them in the async pipeline.
+- **Minimal `configure()`.** Full env/YAML resolution + entry-point exporter
+  loading is feat-010; the call site (`forgesight.configure()`) is stable.
+- **`current_run()` via a dedicated `contextvars` var** set by `RunScope`.
+- **`@instrument` covers agent/step/tool**; `llm`/`mcp`/`workflow` need per-call
+  args and are opened via the scope API (the decorator raises a clear error).
+- **`capture_args` is accepted but inert** in feat-002 — the content-capture
+  machinery (P7 gating + redaction) lands in feat-008.
+- **Structured run fields** (`agent.version`, `parent.run_id`, `context.id`) are
+  stashed in `Record.attributes` pending the OTel attribute mapping (feat-004).
+
+### Not yet implemented
+
+- The async bounded pipeline (feat-003), OTel mapping (feat-004), metrics
+  (feat-005), pricing table (feat-006 — the runtime calls a `PricingProvider` if
+  one is registered), event-bus formalisation (feat-007), interceptor built-ins
+  (feat-008), error detail capture (feat-009), full config (feat-010).
+- TypeScript port.
+
+## Runbook
+
+### How do I instrument an agent (the <10-line path)?
+
+```python
+import forgesight
+
+forgesight.configure()                                   # console by default
+with forgesight.telemetry.agent_run("issue-classifier", version="1.2.0") as run:
+    with run.step("react-iter-1"):
+        with run.llm_call(provider="anthropic", model="claude-sonnet-4-5") as call:
+            resp = client.messages.create(...)
+            call.record_usage(input=resp.usage.input_tokens, output=resp.usage.output_tokens)
+        with run.tool_call("web_search"):
+            results = search(query)
+```
+
+### How do I instrument an existing function?
+
+```python
+from forgesight import instrument
+
+@instrument(kind="tool", name="web_search")
+def web_search(query: str) -> list[str]: ...
+
+@instrument(kind="agent", version="1.2.0")
+async def classify(issue: str) -> str: ...
+```
+
+### How do I attach business metadata for cost attribution?
+
+```python
+with forgesight.telemetry.agent_run("classifier") as run:
+    run.set_metadata(team="platform", repo="agentforge")   # → every child span
+    with run.llm_call("anthropic", "claude-sonnet-4-5") as call:
+        call.set_metadata(prompt_variant="B")              # → this LLM span only
+```
+
+### How do I capture telemetry in tests?
+
+```python
+from forgesight import configure, telemetry, InMemoryExporter
+
+mem = InMemoryExporter()
+configure(exporters=[mem])
+with telemetry.agent_run("t") as run:
+    with run.tool_call("search"):
+        ...
+assert [r.kind for r in mem.records]   # AGENT + TOOL records captured
+```
+
+### Does telemetry block my agent or fail my run?
+
+No. Scope enter/exit is CPU-only (build record → interceptors → hand off); a
+failing or slow exporter is isolated and never propagates (P6). An exception inside
+a scope is recorded (`status=ERROR`, `RUN_FAILED` emitted) and **re-raised** — the
+SDK never swallows your exception (FR-7).
