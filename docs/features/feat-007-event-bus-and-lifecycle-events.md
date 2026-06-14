@@ -6,7 +6,7 @@
 |---|---|
 | **ID** | feat-007 |
 | **Title** | Event bus & lifecycle events (`EventListener` SPI; `RUN_STARTED`…`MCP_EXECUTED`) |
-| **Status** | `proposed` |
+| **Status** | `shipped` |
 | **Owner** | kjoshi |
 | **Created** | 2026-06-14 |
 | **Target version** | 0.1 |
@@ -425,3 +425,74 @@ Promise). Python lands first (0.1); TS targets parity per
 - feat-021 (evaluations & human feedback — the primary downstream consumer; **blocked by** this)
 - feat-011 (`run_event_listener_conformance`)
 - Prior art: AgentForge `agentforge-py` feat-009 hook fan-out + error isolation
+
+---
+
+## Implementation status
+
+**Status: shipped (Python).** Landed via PR #7 (CI green on Python 3.11/3.12/3.13).
+The SPI + ordered, isolated delivery were already in place from feat-001 (`EventListener`,
+`EventType`, `LifecycleEvent`) + feat-002 (the scopes emit at every lifecycle point;
+`Runtime.emit_event` delivers in registration order, isolated). feat-007 hardens that:
+
+| Area | What landed |
+|---|---|
+| Event enrichment | `LifecycleEvent` gains optional `trace_id` / `span_id` / `context_id` (minor add to the locked type); the scopes populate `trace_id` + `span_id` on start and finish events, and `attributes` on finish. |
+| Step muting | `deliver_step_events` config (default `true`) suppresses `STEP_STARTED`/`STEP_COMPLETED` on hot loops; non-step events still fire. |
+| Isolation metric | `Runtime.listener_errors` counts listeners that raise (a raising listener never touches the run or siblings — P6). |
+| Emission points | `RUN_STARTED` first → `STEP_*` / `LLM_EXECUTED` / `TOOL_EXECUTED` / `MCP_EXECUTED` → `RUN_COMPLETED`/`RUN_FAILED` last (within a run). |
+
+143 tests workspace-wide, **97.5% coverage**, `mypy --strict` + `ruff` clean.
+
+### Deviations from this spec
+
+- **Kept the feat-001 names** (`EventType` / `.type` / `.record` / `.attributes`)
+  rather than the spec's proposed `EventKind` / `.kind` / `.payload` / `.metadata` —
+  those are **locked surface** (feat-001, P5) and renaming them would be a breaking
+  change for no semantic gain. The eight kinds and the contract are identical.
+- **No separate `EventBus` class.** `Runtime.emit_event` (feat-002/003) is the bus;
+  the spec marked `EventBus` "experimental/internal" anyway.
+- **`emit_otel_events` deferred.** Mirroring events onto a live OTel span needs the
+  runtime to hold OTel spans, but ForgeSight builds spans post-hoc in the exporter
+  (feat-004). Deferred to an `forgesight-otel` follow-up.
+- **Listener entry-point name resolution is feat-010.** `configure(listeners=[…])`
+  takes instances now; resolving `listeners: [{name: …}]` from YAML via the
+  `forgesight.listeners` entry-point group lands with the config loader.
+
+### Not yet implemented
+
+`emit_otel_events`; YAML/entry-point listener resolution (feat-010); exposing
+`listener_errors` as an `sdk_*` metric (feat-005 follow-up); TypeScript port.
+
+## Runbook
+
+### How do I react to runs (Slack on failure, Kafka on every LLM call)?
+
+```python
+import forgesight as af
+from forgesight_api import EventType, LifecycleEvent
+
+class SlackOnFailure:
+    def __init__(self, url: str) -> None:
+        self._url = url
+    def on_event(self, event: LifecycleEvent) -> None:
+        if event.type is EventType.RUN_FAILED:
+            post_to_slack(self._url, f"run {event.run_id} failed")   # enqueue-and-return ideally
+
+af.configure(listeners=[SlackOnFailure("https://hooks.slack.com/...")])
+```
+
+Listeners fire in registration order; a raising listener is caught, counted
+(`get_runtime().listener_errors`), and never touches the run or other listeners.
+
+### Will a slow listener slow my agent?
+
+Listeners run inline, so a *slow* (blocking) listener adds latency at the emit point —
+the SDK isolates *failures*, not *latency*. For slow work (a network POST), enqueue and
+return (`asyncio.create_task` / a queue) inside `on_event`.
+
+### How do I mute step events on a hot loop?
+
+```python
+af.configure(deliver_step_events=False)   # STEP_STARTED/STEP_COMPLETED suppressed
+```

@@ -79,3 +79,6 @@ class LifecycleEvent:
     unix_nanos: int
     record: Record | None = None
     attributes: Mapping[str, object] = field(default_factory=_empty_attrs)
+    trace_id: str | None = None
+    span_id: str | None = None
+    context_id: str | None = None

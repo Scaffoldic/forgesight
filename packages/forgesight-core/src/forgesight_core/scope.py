@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from .processor import Runtime
 
 _NANOS_PER_MS = 1_000_000
+_STEP_EVENTS = frozenset({EventType.STEP_STARTED, EventType.STEP_COMPLETED})
 
 _CURRENT_RUN: contextvars.ContextVar[RunScope | None] = contextvars.ContextVar(
     "forgesight_current_run", default=None
@@ -101,9 +102,15 @@ class _Scope:
         self.run_id = self._bound_ctx.run_id
         self.trace_id = self._bound_ctx.trace_id
         self._token = set_current_context(self._bound_ctx)
-        if self._start_event is not None:
+        if self._start_event is not None and self._emit_enabled(self._start_event):
             self._rt.emit_event(
-                LifecycleEvent(type=self._start_event, run_id=self.run_id, unix_nanos=self._start)
+                LifecycleEvent(
+                    type=self._start_event,
+                    run_id=self.run_id,
+                    unix_nanos=self._start,
+                    trace_id=self.trace_id,
+                    span_id=self.span_id,
+                )
             )
 
     def _exit(self, exc: BaseException | None) -> None:
@@ -117,14 +124,18 @@ class _Scope:
                 event_type = self._finish_event
                 if exc is not None and event_type is EventType.RUN_COMPLETED:
                     event_type = EventType.RUN_FAILED
-                self._rt.emit_event(
-                    LifecycleEvent(
-                        type=event_type,
-                        run_id=self.run_id,
-                        unix_nanos=self._end,
-                        record=record,
+                if self._emit_enabled(event_type):
+                    self._rt.emit_event(
+                        LifecycleEvent(
+                            type=event_type,
+                            run_id=self.run_id,
+                            unix_nanos=self._end,
+                            record=record,
+                            attributes=record.attributes,
+                            trace_id=self.trace_id,
+                            span_id=self.span_id,
+                        )
                     )
-                )
         finally:
             if self._token is not None:
                 reset_current_context(self._token)
@@ -157,6 +168,11 @@ class _Scope:
 
     def _frozen_attrs(self, attrs: dict[str, object]) -> MappingProxyType[str, object]:
         return MappingProxyType(dict(attrs))
+
+    def _emit_enabled(self, event_type: EventType) -> bool:
+        if event_type in _STEP_EVENTS:
+            return self._rt.config.deliver_step_events
+        return True
 
 
 class _ContainerScope(_Scope):

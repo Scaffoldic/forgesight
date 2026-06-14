@@ -60,6 +60,7 @@ class RuntimeConfig:
     export_timeout_millis: int = _DEFAULT_EXPORT_TIMEOUT_MS
     sample_rate: float = 1.0
     sync_export: bool = False  # inline export (deterministic) vs the async worker
+    deliver_step_events: bool = True  # suppress STEP_* events on hot loops when False
 
     def __post_init__(self) -> None:
         if self.max_export_batch_size > self.max_queue_size:
@@ -80,6 +81,7 @@ class Runtime:
         self.dropped = 0  # records dropped by an interceptor veto OR a full queue (feat-005)
         self.export_failures = 0
         self.sampled_out = 0
+        self.listener_errors = 0
         self.metrics: MetricsSubsystem | None = None
         self._queue: queue.Queue[Record] = queue.Queue(maxsize=self.config.max_queue_size)
         self._export_lock = threading.Lock()
@@ -128,6 +130,7 @@ class Runtime:
             try:
                 listener.on_event(event)
             except Exception:
+                self.listener_errors += 1
                 _log.exception("event listener %r raised on %s", listener, event.type)
 
     # --- flush / shutdown -------------------------------------------------
