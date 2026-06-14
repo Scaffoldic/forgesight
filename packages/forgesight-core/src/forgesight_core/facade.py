@@ -10,9 +10,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from opentelemetry.sdk.metrics.export import MetricReader
+
 from forgesight_api import EventListener, Interceptor, PricingProvider, TelemetryExporter
 
 from .exporters import ConsoleExporter
+from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import RunScope, WorkflowScope, current_run_scope
 
@@ -31,6 +34,8 @@ def configure(
     interceptors: Sequence[Interceptor] | None = None,
     listeners: Sequence[EventListener] | None = None,
     pricing: PricingProvider | None = None,
+    metrics: MetricConfig | None = None,
+    metric_reader: MetricReader | None = None,
 ) -> Runtime:
     """Initialise the SDK. With no arguments, routes to a ``ConsoleExporter`` (FR-12)."""
     config = RuntimeConfig()
@@ -59,6 +64,9 @@ def configure(
     for listener in listeners or ():
         rt.add_listener(listener)
     rt.set_pricing(pricing)
+    metric_config = metrics if metrics is not None else MetricConfig()
+    if metric_config.enabled:
+        rt.metrics = MetricsSubsystem(metric_config, metric_reader)
     return rt
 
 

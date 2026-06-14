@@ -15,8 +15,8 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
-# Vendor-neutral runtime: api contracts + the OTel API only (never a backend SDK, P1).
-dependencies = ["forgesight-api", "opentelemetry-api>=1.27"]
+# Vendor-neutral runtime: api contracts + the OTel API/SDK only (never a backend SDK, P1).
+dependencies = ["forgesight-api", "opentelemetry-api>=1.27", "opentelemetry-sdk>=1.27"]
 
 [build-system]
 requires = ["hatchling"]

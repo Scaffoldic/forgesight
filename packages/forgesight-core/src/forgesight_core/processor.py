@@ -33,6 +33,8 @@ from forgesight_api import (
     TelemetryExporter,
 )
 
+from .metrics import MetricsSubsystem
+
 _log = logging.getLogger("forgesight.pipeline")
 
 _DEFAULT_SERVICE_NAME = "forgesight-agent"
@@ -78,6 +80,7 @@ class Runtime:
         self.dropped = 0  # records dropped by an interceptor veto OR a full queue (feat-005)
         self.export_failures = 0
         self.sampled_out = 0
+        self.metrics: MetricsSubsystem | None = None
         self._queue: queue.Queue[Record] = queue.Queue(maxsize=self.config.max_queue_size)
         self._export_lock = threading.Lock()
         self._stop = threading.Event()
@@ -100,6 +103,8 @@ class Runtime:
     # --- dispatch (hot path) ---------------------------------------------
     def emit_record(self, record: Record) -> None:
         """Sample → interceptor chain → enqueue (or inline export in sync mode)."""
+        if self.metrics is not None:
+            self.metrics.record(record)  # metrics count all records, even unsampled traces
         if not self._sampled(record.trace_id):
             self.sampled_out += 1
             return
@@ -153,6 +158,8 @@ class Runtime:
                 exporter.shutdown(timeout_millis)
             except Exception:
                 _log.exception("exporter %r raised during shutdown", exporter)
+        if self.metrics is not None:
+            self.metrics.shutdown()
 
     # --- internals --------------------------------------------------------
     def _ensure_worker(self) -> None:

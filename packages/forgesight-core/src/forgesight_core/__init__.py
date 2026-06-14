@@ -15,6 +15,7 @@ from .context import (
 from .decorator import instrument
 from .exporters import ConsoleExporter, InMemoryExporter
 from .facade import Telemetry, configure, telemetry
+from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import (
     LLMScope,
@@ -33,6 +34,8 @@ __all__ = [
     "InMemoryExporter",
     "LLMScope",
     "MCPScope",
+    "MetricConfig",
+    "MetricsSubsystem",
     "RunScope",
     "Runtime",
     "RuntimeConfig",
