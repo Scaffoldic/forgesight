@@ -15,6 +15,7 @@ from forgesight_core import (
     current_run_scope,
     get_runtime,
     instrument,
+    register,
     telemetry,
 )
 
@@ -35,5 +36,6 @@ __all__ = [
     "current_run",
     "get_runtime",
     "instrument",
+    "register",
     "telemetry",
 ]

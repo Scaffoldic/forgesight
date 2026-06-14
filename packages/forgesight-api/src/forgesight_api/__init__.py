@@ -10,6 +10,12 @@ See ``docs/features/feat-001-core-domain-model-and-contracts.md``.
 
 from __future__ import annotations
 
+from .errors import (
+    EventListenerNotRegisteredError,
+    ExporterNotRegisteredError,
+    InterceptorNotRegisteredError,
+    PricingProviderNotRegisteredError,
+)
 from .ids import is_valid_trace_id, is_valid_ulid, new_trace_id, new_ulid
 from .model import (
     AgentRun,
@@ -34,14 +40,18 @@ __all__ = [
     "Content",
     "ErrorInfo",
     "EventListener",
+    "EventListenerNotRegisteredError",
     "EventType",
     "ExportResult",
+    "ExporterNotRegisteredError",
     "Interceptor",
+    "InterceptorNotRegisteredError",
     "Kind",
     "LLMCall",
     "LifecycleEvent",
     "MCPCall",
     "PricingProvider",
+    "PricingProviderNotRegisteredError",
     # exporter-facing values
     "Record",
     # enums

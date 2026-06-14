@@ -6,6 +6,7 @@ Adapter authors (feat-019) use the context primitives and scopes here.
 
 from __future__ import annotations
 
+from .config import register, resolve
 from .context import (
     TelemetryContext,
     current_context,
@@ -58,6 +59,8 @@ __all__ = [
     "instrument",
     "new_run_id",
     "new_span_id",
+    "register",
     "reset_runtime",
+    "resolve",
     "telemetry",
 ]
