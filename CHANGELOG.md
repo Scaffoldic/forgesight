@@ -45,3 +45,7 @@ All notable changes to ForgeSight are documented here. The format follows
   tiered context pricing); model-name resolution with aliases + overrides; default in
   `configure()`. Cost emitted as `forgesight.usage.cost_usd`, rolled into
   `forgesight.agent.cost_total`; unknown models degrade to `cost=None`.
+- **feat-007 — event bus & lifecycle events.** Ordered, fault-isolated delivery of
+  `RUN_STARTED`…`MCP_EXECUTED` to registered `EventListener`s; `LifecycleEvent`
+  enriched with `trace_id`/`span_id`; `deliver_step_events` toggle; listener-error
+  counter. A raising listener never affects the run or siblings.

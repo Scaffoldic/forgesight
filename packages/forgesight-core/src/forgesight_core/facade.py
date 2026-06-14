@@ -31,6 +31,7 @@ def configure(
     max_queue_size: int | None = None,
     max_export_batch_size: int | None = None,
     schedule_delay_millis: int | None = None,
+    deliver_step_events: bool | None = None,
     exporters: Sequence[TelemetryExporter] | None = None,
     interceptors: Sequence[Interceptor] | None = None,
     listeners: Sequence[EventListener] | None = None,
@@ -57,6 +58,8 @@ def configure(
         config.max_export_batch_size = max_export_batch_size
     if schedule_delay_millis is not None:
         config.schedule_delay_millis = schedule_delay_millis
+    if deliver_step_events is not None:
+        config.deliver_step_events = deliver_step_events
     config.__post_init__()  # re-validate after applying overrides
     rt = reset_runtime(config)
     for exporter in exporters if exporters is not None else [ConsoleExporter()]:
