@@ -21,6 +21,7 @@ def test_end_to_end_via_facade() -> None:
         assert forgesight.current_run() is run
         with run.llm_call(provider="anthropic", model="claude-sonnet-4-5") as call:
             call.record_usage(input=1200, output=350, cache_read=800)
+    forgesight.get_runtime().force_flush()  # drain the async pipeline
     kinds = sorted({r.kind for r in mem.records})
     assert kinds == [Kind.AGENT, Kind.LLM]
     forgesight.get_runtime().shutdown()

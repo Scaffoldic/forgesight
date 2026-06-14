@@ -1,4 +1,7 @@
-"""Tests for the dispatch runtime: interceptors, fault isolation, events, flush."""
+"""Tests for the dispatch runtime: interceptors, fault isolation, events.
+
+These drive the async path and synchronise with ``force_flush()`` before asserting.
+"""
 
 from __future__ import annotations
 
@@ -29,12 +32,36 @@ def _rec(name: str = "r") -> Record:
     )
 
 
+class _Raises:
+    def export(self, records: Sequence[Record]) -> ExportResult:
+        raise RuntimeError("backend down")
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+    def shutdown(self, timeout_millis: int = 30_000) -> None:
+        return None
+
+
+class _Fails:
+    def export(self, records: Sequence[Record]) -> ExportResult:
+        return ExportResult.FAILURE
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+    def shutdown(self, timeout_millis: int = 30_000) -> None:
+        return None
+
+
 def test_emit_record_reaches_exporter() -> None:
     rt = reset_runtime()
     mem = InMemoryExporter()
     rt.add_exporter(mem)
     rt.emit_record(_rec("a"))
+    rt.force_flush()
     assert [r.name for r in mem.records] == ["a"]
+    rt.shutdown()
 
 
 def test_interceptor_can_drop_and_is_counted() -> None:
@@ -48,8 +75,10 @@ def test_interceptor_can_drop_and_is_counted() -> None:
 
     rt.add_interceptor(Dropper())
     rt.emit_record(_rec())
+    rt.force_flush()
     assert mem.records == []
     assert rt.dropped == 1
+    rt.shutdown()
 
 
 def test_interceptor_can_replace_record() -> None:
@@ -63,7 +92,9 @@ def test_interceptor_can_replace_record() -> None:
 
     rt.add_interceptor(Rename())
     rt.emit_record(_rec("orig"))
+    rt.force_flush()
     assert [r.name for r in mem.records] == ["renamed"]
+    rt.shutdown()
 
 
 def test_raising_interceptor_is_isolated() -> None:
@@ -77,47 +108,30 @@ def test_raising_interceptor_is_isolated() -> None:
 
     rt.add_interceptor(Boom())
     rt.emit_record(_rec("survives"))
-    # the bad interceptor is skipped; the record still flows
+    rt.force_flush()
     assert [r.name for r in mem.records] == ["survives"]
+    rt.shutdown()
 
 
 def test_one_failing_exporter_does_not_affect_others() -> None:
     rt = reset_runtime()
     good = InMemoryExporter()
-
-    class Raises:
-        def export(self, records: Sequence[Record]) -> ExportResult:
-            raise RuntimeError("backend down")
-
-        def force_flush(self, timeout_millis: int = 30_000) -> bool:
-            return True
-
-        def shutdown(self, timeout_millis: int = 30_000) -> None:
-            return None
-
-    rt.add_exporter(Raises())
+    rt.add_exporter(_Raises())
     rt.add_exporter(good)
     rt.emit_record(_rec("x"))
+    rt.force_flush()
     assert [r.name for r in good.records] == ["x"]
     assert rt.export_failures == 1
+    rt.shutdown()
 
 
 def test_export_failure_result_is_counted() -> None:
     rt = reset_runtime()
-
-    class Fails:
-        def export(self, records: Sequence[Record]) -> ExportResult:
-            return ExportResult.FAILURE
-
-        def force_flush(self, timeout_millis: int = 30_000) -> bool:
-            return True
-
-        def shutdown(self, timeout_millis: int = 30_000) -> None:
-            return None
-
-    rt.add_exporter(Fails())
+    rt.add_exporter(_Fails())
     rt.emit_record(_rec())
+    rt.force_flush()
     assert rt.export_failures == 1
+    rt.shutdown()
 
 
 def test_events_delivered_in_order_and_isolated() -> None:
@@ -136,12 +150,13 @@ def test_events_delivered_in_order_and_isolated() -> None:
     rt.add_listener(Good())
     rt.emit_event(LifecycleEvent(type=EventType.RUN_STARTED, run_id="r", unix_nanos=1))
     assert seen == [EventType.RUN_STARTED]
+    rt.shutdown()
 
 
 def test_force_flush_and_shutdown_handle_raising_exporters() -> None:
     rt = reset_runtime()
 
-    class Raises:
+    class FlushRaises:
         def export(self, records: Sequence[Record]) -> ExportResult:
             return ExportResult.SUCCESS
 
@@ -161,7 +176,7 @@ def test_force_flush_and_shutdown_handle_raising_exporters() -> None:
         def shutdown(self, timeout_millis: int = 30_000) -> None:
             return None
 
-    rt.add_exporter(Raises())
+    rt.add_exporter(FlushRaises())
     rt.add_exporter(FlushFalse())
-    assert rt.force_flush() is False  # both a raise and a False ⇒ overall False
+    assert rt.force_flush() is False  # a raise and a False ⇒ overall False
     rt.shutdown()  # must not raise

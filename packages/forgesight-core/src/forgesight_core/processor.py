@@ -1,17 +1,27 @@
-"""The dispatch runtime: interceptor chain → exporters, and events → listeners.
+"""The dispatch runtime + the async export pipeline.
 
-This is the central singleton the scopes hand records and events to. In feat-002 the
-dispatch is **synchronous and fault-isolated** (each exporter / interceptor / listener
-call is guarded so one failure never affects the agent or the others — P6). feat-003
-replaces the synchronous fan-out with the async, bounded, batched export pipeline;
-feat-010 populates this from configuration. The scope-facing surface
-(:meth:`Runtime.emit_record` / :meth:`Runtime.emit_event`) stays the same across both.
+The hot path (``emit_record``) is non-blocking: it samples, runs the interceptor
+chain, and enqueues into a **bounded** queue — no I/O, no awaiting an exporter
+(P6, NFR-1/2). A single background worker drains the queue in batches and fans out
+to every exporter, each call fault-isolated so one failing backend never affects the
+agent or the others (NFR-3). Under sustained backpressure the queue drops the newest
+record and counts it rather than growing unbounded (NFR-4).
+
+``sync_export=True`` switches to inline, synchronous export — deterministic, used by
+unit tests and simple scripts. The scope-facing surface (``emit_record`` /
+``emit_event`` / ``force_flush`` / ``shutdown``) is identical in both modes.
+
+See ``docs/design/exporter-pipeline.md``.
 """
 
 from __future__ import annotations
 
+import atexit
 import logging
-from dataclasses import dataclass, field
+import queue
+import threading
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 from forgesight_api import (
     EventListener,
@@ -23,32 +33,56 @@ from forgesight_api import (
     TelemetryExporter,
 )
 
-_log = logging.getLogger("forgesight.runtime")
+_log = logging.getLogger("forgesight.pipeline")
 
 _DEFAULT_SERVICE_NAME = "forgesight-agent"
 _DEFAULT_TOOL_TYPE = "function"
+_DEFAULT_MAX_QUEUE = 2048
+_DEFAULT_MAX_BATCH = 512
+_DEFAULT_SCHEDULE_DELAY_MS = 5000
+_DEFAULT_EXPORT_TIMEOUT_MS = 30000
+_SAMPLE_DENOM = 1 << 64
 
 
 @dataclass(slots=True)
 class RuntimeConfig:
-    """Resolved runtime settings (feat-010 fills these from env/YAML/kwargs)."""
+    """Resolved runtime + pipeline settings (feat-010 fills these from env/YAML)."""
 
     service_name: str = _DEFAULT_SERVICE_NAME
     capture_content: bool = False
     default_tool_type: str = _DEFAULT_TOOL_TYPE
+    # pipeline knobs (P8 — named, documented defaults)
+    max_queue_size: int = _DEFAULT_MAX_QUEUE
+    max_export_batch_size: int = _DEFAULT_MAX_BATCH
+    schedule_delay_millis: int = _DEFAULT_SCHEDULE_DELAY_MS
+    export_timeout_millis: int = _DEFAULT_EXPORT_TIMEOUT_MS
+    sample_rate: float = 1.0
+    sync_export: bool = False  # inline export (deterministic) vs the async worker
+
+    def __post_init__(self) -> None:
+        if self.max_export_batch_size > self.max_queue_size:
+            raise ValueError("max_export_batch_size must not exceed max_queue_size")
+        if not 0.0 <= self.sample_rate <= 1.0:
+            raise ValueError("sample_rate must be in [0.0, 1.0]")
 
 
-@dataclass(slots=True)
 class Runtime:
     """Holds the registered SPI implementations and dispatches to them."""
 
-    config: RuntimeConfig = field(default_factory=RuntimeConfig)
-    exporters: list[TelemetryExporter] = field(default_factory=list)
-    interceptors: list[Interceptor] = field(default_factory=list)
-    listeners: list[EventListener] = field(default_factory=list)
-    pricing: PricingProvider | None = None
-    dropped: int = 0  # records dropped by an interceptor (vetoed); surfaced as a metric in feat-005
-    export_failures: int = 0
+    def __init__(self, config: RuntimeConfig | None = None) -> None:
+        self.config = config if config is not None else RuntimeConfig()
+        self.exporters: list[TelemetryExporter] = []
+        self.interceptors: list[Interceptor] = []
+        self.listeners: list[EventListener] = []
+        self.pricing: PricingProvider | None = None
+        self.dropped = 0  # records dropped by an interceptor veto OR a full queue (feat-005)
+        self.export_failures = 0
+        self.sampled_out = 0
+        self._queue: queue.Queue[Record] = queue.Queue(maxsize=self.config.max_queue_size)
+        self._export_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._worker: threading.Thread | None = None
+        self._shutdown = False
 
     # --- registration -----------------------------------------------------
     def add_exporter(self, exporter: TelemetryExporter) -> None:
@@ -63,15 +97,25 @@ class Runtime:
     def set_pricing(self, pricing: PricingProvider | None) -> None:
         self.pricing = pricing
 
-    # --- dispatch ---------------------------------------------------------
+    # --- dispatch (hot path) ---------------------------------------------
     def emit_record(self, record: Record) -> None:
-        """Run the interceptor chain, then fan out to every exporter (isolated)."""
+        """Sample → interceptor chain → enqueue (or inline export in sync mode)."""
+        if not self._sampled(record.trace_id):
+            self.sampled_out += 1
+            return
         processed = self._run_interceptors(record)
         if processed is None:
             self.dropped += 1
             return
-        for exporter in self.exporters:
-            self._safe_export(exporter, processed)
+        if self.config.sync_export:
+            self._export_batch([processed])
+            return
+        self._ensure_worker()
+        try:
+            self._queue.put_nowait(processed)
+        except queue.Full:
+            self.dropped += 1
+            _log.warning("export queue full (size=%d); dropping record", self.config.max_queue_size)
 
     def emit_event(self, event: LifecycleEvent) -> None:
         """Deliver a lifecycle event to every listener in registration order (isolated)."""
@@ -81,7 +125,10 @@ class Runtime:
             except Exception:
                 _log.exception("event listener %r raised on %s", listener, event.type)
 
+    # --- flush / shutdown -------------------------------------------------
     def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        """Drain the queue and flush every exporter. Blocking; idempotent; non-terminal."""
+        self._drain()
         ok = True
         for exporter in self.exporters:
             try:
@@ -92,6 +139,15 @@ class Runtime:
         return ok
 
     def shutdown(self, timeout_millis: int = 30_000) -> None:
+        """Stop the worker, drain, and shut down every exporter. Idempotent; terminal."""
+        if self._shutdown:
+            return
+        self._shutdown = True
+        self._stop.set()
+        worker = self._worker
+        if worker is not None:
+            worker.join(timeout_millis / 1000)
+        self._drain()
         for exporter in self.exporters:
             try:
                 exporter.shutdown(timeout_millis)
@@ -99,6 +155,40 @@ class Runtime:
                 _log.exception("exporter %r raised during shutdown", exporter)
 
     # --- internals --------------------------------------------------------
+    def _ensure_worker(self) -> None:
+        if self._worker is not None or self._shutdown:
+            return
+        self._worker = threading.Thread(
+            target=self._worker_loop, name="forgesight-export-worker", daemon=True
+        )
+        self._worker.start()
+
+    def _worker_loop(self) -> None:
+        delay_s = self.config.schedule_delay_millis / 1000
+        while not self._stop.is_set():
+            if self._stop.wait(delay_s):
+                break
+            self._drain()
+        self._drain()  # final drain after stop
+
+    def _drain(self) -> None:
+        batch_size = self.config.max_export_batch_size
+        while True:
+            batch: list[Record] = []
+            for _ in range(batch_size):
+                try:
+                    batch.append(self._queue.get_nowait())
+                except queue.Empty:
+                    break
+            if not batch:
+                return
+            self._export_batch(batch)
+
+    def _export_batch(self, batch: Sequence[Record]) -> None:
+        with self._export_lock:
+            for exporter in self.exporters:
+                self._safe_export(exporter, batch)
+
     def _run_interceptors(self, record: Record) -> Record | None:
         current: Record | None = record
         for interceptor in self.interceptors:
@@ -110,9 +200,9 @@ class Runtime:
                 _log.exception("interceptor %r raised; skipping it", interceptor)
         return current
 
-    def _safe_export(self, exporter: TelemetryExporter, record: Record) -> None:
+    def _safe_export(self, exporter: TelemetryExporter, batch: Sequence[Record]) -> None:
         try:
-            result = exporter.export([record])
+            result = exporter.export(batch)
         except Exception:
             self.export_failures += 1
             _log.exception("exporter %r raised during export", exporter)
@@ -120,6 +210,18 @@ class Runtime:
         if result is ExportResult.FAILURE:
             self.export_failures += 1
             _log.warning("exporter %r returned FAILURE", exporter)
+
+    def _sampled(self, trace_id: str) -> bool:
+        rate = self.config.sample_rate
+        if rate >= 1.0:
+            return True
+        if rate <= 0.0:
+            return False
+        try:
+            bucket = int(trace_id[:16], 16)
+        except ValueError:
+            return True  # unparseable id ⇒ never silently drop
+        return bucket / _SAMPLE_DENOM < rate
 
 
 _RUNTIME = Runtime()
@@ -130,8 +232,16 @@ def get_runtime() -> Runtime:
     return _RUNTIME
 
 
-def reset_runtime() -> Runtime:
-    """Reset the singleton to a fresh, empty state. For tests and re-``configure()``."""
+def reset_runtime(config: RuntimeConfig | None = None) -> Runtime:
+    """Shut the current runtime down and install a fresh one. For tests / re-``configure()``."""
     global _RUNTIME
-    _RUNTIME = Runtime()
+    _RUNTIME.shutdown()
+    _RUNTIME = Runtime(config)
     return _RUNTIME
+
+
+def _atexit_shutdown() -> None:  # pragma: no cover - runs at interpreter exit
+    _RUNTIME.shutdown()
+
+
+atexit.register(_atexit_shutdown)
