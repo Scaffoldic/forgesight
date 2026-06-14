@@ -16,6 +16,7 @@ from forgesight_api import EventListener, Interceptor, PricingProvider, Telemetr
 
 from .cost import TablePricingProvider
 from .exporters import ConsoleExporter
+from .interceptors import ContentCaptureGate
 from .metrics import MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import RunScope, WorkflowScope, current_run_scope
@@ -64,6 +65,9 @@ def configure(
     rt = reset_runtime(config)
     for exporter in exporters if exporters is not None else [ConsoleExporter()]:
         rt.add_exporter(exporter)
+    # The content gate is always first so no later interceptor or exporter can see
+    # content the operator didn't opt into (P7/ADR-0007).
+    rt.add_interceptor(ContentCaptureGate(capture_content=config.capture_content))
     for interceptor in interceptors or ():
         rt.add_interceptor(interceptor)
     for listener in listeners or ():
