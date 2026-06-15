@@ -1,0 +1,32 @@
+[project]
+name = "forgesight-mcp"
+version = "0.1.0"
+description = "ForgeSight MCP instrumentation — client + server spans, mcp.* conventions, W3C propagation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "mcp", "model-context-protocol", "ai-agents", "forgesight"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core", "mcp>=1"]
+
+[project.entry-points."forgesight.integrations"]
+mcp = "forgesight_mcp:install"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_mcp"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }
