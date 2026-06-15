@@ -65,6 +65,7 @@ source_pkgs = [
     "forgesight_datadog",
     "forgesight_mcp",
     "forgesight_fastapi",
+    "forgesight_github",
 ]
 
 [tool.coverage.report]
