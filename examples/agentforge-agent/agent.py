@@ -35,7 +35,7 @@ def lookup_order(order_id: str) -> dict:
     return ORDERS.get(order_id, {"id": order_id, "status": "unknown"})
 
 
-def _scripted_model() -> FakeLLMClient:
+def scripted_model() -> FakeLLMClient:
     """A two-turn offline model: call the tool, then answer — no key, no network."""
     return FakeLLMClient(
         responses=[
@@ -73,7 +73,7 @@ async def main() -> None:
     )
 
     # 2. Run the AgentForge agent — unchanged from the framework's guide, offline.
-    async with Agent(model=_scripted_model(), tools=[lookup_order], strategy="react") as agent:
+    async with Agent(model=scripted_model(), tools=[lookup_order], strategy="react") as agent:
         result = await agent.run("What's the status of order 1042?")
 
     print("\n=== AgentForge result ===")

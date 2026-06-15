@@ -69,6 +69,39 @@ uv run python ../../agents/forgesight/examples/agentforge-agent/agent.py
 
 No API key, no network — the agent loop runs against a scripted `FakeLLMClient`.
 
+## Export to a real backend (Jaeger via OTLP)
+
+`agent_otlp.py` is the same agent + bridge, but instead of the in-memory sink it ships the
+trace over **OTLP/HTTP to a real collector** — proving the *export* path, not just record
+capture. `docker-compose.yml` brings up Jaeger (any OTLP collector works).
+
+```bash
+# install the OTLP exporter too (into the same env as above)
+#   uv pip install --find-links /tmp/fs-wheels forgesight-otel   # monorepo
+#   pip install forgesight-otel                                  # from PyPI
+
+docker compose up -d                 # Jaeger: OTLP on :4318, UI on :16686
+python agent_otlp.py                 # run the agent → trace lands in Jaeger
+open http://localhost:16686          # service "order-agent-otlp"
+docker compose down                  # stop
+```
+
+`agent_otlp.py` runs the agent, exports over OTLP, then polls Jaeger's query API to confirm
+the trace arrived and prints a direct link. Validated output:
+
+```
+AgentForge: 'Order 1042 has shipped; ETA 2026-06-18.'  (cost=$0.0055, run_id=…)
+→ exported over OTLP to http://localhost:4318/v1/traces
+
+✅ trace found in Jaeger — 6 spans: ['chat fake', 'execute_tool lookup_order',
+   'invoke_agent order-agent-otlp', 'iteration-0', 'iteration-1']
+```
+
+The span names are the OTel GenAI semantic conventions (`invoke_agent`, `chat`,
+`execute_tool`), so the trace renders correctly in Jaeger — and would in Tempo, Honeycomb,
+Datadog, or any OTLP backend, with no code change. Swap the endpoint via
+`FORGESIGHT_OTLP_ENDPOINT`.
+
 ## Wiring it into a *real* AgentForge agent
 
 The example uses the offline fake model; a real agent swaps it for a provider
