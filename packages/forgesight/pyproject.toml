@@ -18,6 +18,41 @@ classifiers = [
 ]
 dependencies = ["forgesight-core"]
 
+# Backends & integrations are separate distributions; each extra pulls one at the matching
+# coordinated version. `pip install "forgesight[otel,langfuse]"` installs the facade + those.
+# Bump the `~= 0.1.0` pins together every release train (see launch/launch-checklist.md).
+[project.optional-dependencies]
+otel = ["forgesight-otel ~= 0.1.0"]
+prometheus = ["forgesight-prometheus ~= 0.1.0"]
+langfuse = ["forgesight-langfuse ~= 0.1.0"]
+clickhouse = ["forgesight-clickhouse ~= 0.1.0"]
+datadog = ["forgesight-datadog ~= 0.1.0"]
+mcp = ["forgesight-mcp ~= 0.1.0"]
+fastapi = ["forgesight-fastapi ~= 0.1.0"]
+github = ["forgesight-github ~= 0.1.0"]
+governance = ["forgesight-governance ~= 0.1.0"]
+eval = ["forgesight-eval ~= 0.1.0"]
+registry = ["forgesight-registry ~= 0.1.0"]
+adapters-langgraph = ["forgesight-adapters-langgraph ~= 0.1.0"]
+# crewai keeps its heavy framework behind an optional extra on the adapter — chain it so the
+# framework is actually installed (otherwise the wrapper imports but the first call fails).
+adapters-crewai = ["forgesight-adapters-crewai[crewai] ~= 0.1.0"]
+# Everything except the heavy CrewAI tree (opt into that explicitly with [adapters-crewai]).
+all = [
+    "forgesight-otel ~= 0.1.0",
+    "forgesight-prometheus ~= 0.1.0",
+    "forgesight-langfuse ~= 0.1.0",
+    "forgesight-clickhouse ~= 0.1.0",
+    "forgesight-datadog ~= 0.1.0",
+    "forgesight-mcp ~= 0.1.0",
+    "forgesight-fastapi ~= 0.1.0",
+    "forgesight-github ~= 0.1.0",
+    "forgesight-governance ~= 0.1.0",
+    "forgesight-eval ~= 0.1.0",
+    "forgesight-registry ~= 0.1.0",
+    "forgesight-adapters-langgraph ~= 0.1.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -25,5 +60,20 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/forgesight"]
 
+# Dev-time: resolve every ForgeSight package from the workspace (the version pins above are
+# for PyPI installs). uv prefers these over PyPI when working in the workspace.
 [tool.uv.sources]
 forgesight-core = { workspace = true }
+forgesight-otel = { workspace = true }
+forgesight-prometheus = { workspace = true }
+forgesight-langfuse = { workspace = true }
+forgesight-clickhouse = { workspace = true }
+forgesight-datadog = { workspace = true }
+forgesight-mcp = { workspace = true }
+forgesight-fastapi = { workspace = true }
+forgesight-github = { workspace = true }
+forgesight-governance = { workspace = true }
+forgesight-eval = { workspace = true }
+forgesight-registry = { workspace = true }
+forgesight-adapters-langgraph = { workspace = true }
+forgesight-adapters-crewai = { workspace = true }
