@@ -47,7 +47,19 @@ CI_ENV = {
 
 
 @pytest.fixture(autouse=True)
-def _clean() -> Iterator[None]:
+def _clean(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    # CI itself sets GITHUB_* / GITHUB_STEP_SUMMARY — scrub the ambient env so tests are
+    # deterministic whether or not they run inside GitHub Actions.
+    for key in (
+        *CI_ENV,
+        "GITHUB_EVENT_PATH",
+        "GITHUB_STEP_SUMMARY",
+        "FORGESIGHT_GITHUB_SUMMARY",
+        "FORGESIGHT_OTLP_TOKEN",
+        "ACTIONS_ID_TOKEN_REQUEST_URL",
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    ):
+        monkeypatch.delenv(key, raising=False)
     _reset_for_tests()
     yield
     reset_runtime()
