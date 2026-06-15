@@ -1,0 +1,34 @@
+[project]
+name = "forgesight-governance"
+version = "0.1.0"
+description = "ForgeSight governance — cost budgets, policy enforcement, and a kill-switch on the interceptor chain."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "finops", "budgets", "governance", "ai-agents", "forgesight"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core"]
+
+[project.entry-points."forgesight.interceptors"]
+budget = "forgesight_governance.budget:BudgetInterceptor.from_config"
+policy = "forgesight_governance.policy:PolicyInterceptor.from_config"
+kill-switch = "forgesight_governance.kill_switch:KillSwitch.from_config"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_governance"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }

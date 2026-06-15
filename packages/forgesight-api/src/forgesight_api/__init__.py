@@ -17,6 +17,7 @@ from .errors import (
     InterceptorNotRegisteredError,
     PricingProviderNotRegisteredError,
 )
+from .governance import GovernanceSignal
 from .ids import is_valid_trace_id, is_valid_ulid, new_trace_id, new_ulid
 from .model import (
     AgentRun,
@@ -46,6 +47,7 @@ __all__ = [
     "ExportResult",
     "ExporterNotRegisteredError",
     "FrameworkAdapter",
+    "GovernanceSignal",
     "Interceptor",
     "InterceptorNotRegisteredError",
     "Kind",
