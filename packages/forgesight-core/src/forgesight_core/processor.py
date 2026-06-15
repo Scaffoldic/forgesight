@@ -20,7 +20,7 @@ import atexit
 import logging
 import queue
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from forgesight_api import (
@@ -88,6 +88,9 @@ class Runtime:
         self.listener_errors = 0
         self.metrics: MetricsSubsystem | None = None
         self.adapters: list[FrameworkAdapter] = []  # framework adapters (feat-019)
+        # Run-start metadata provider: (name, version) -> extra run-scoped metadata.
+        # The registry (feat-022) stamps ownership through this; caller-set keys win.
+        self.run_metadata_provider: Callable[[str, str | None], Mapping[str, str]] | None = None
         self._queue: queue.Queue[Record] = queue.Queue(maxsize=self.config.max_queue_size)
         self._export_lock = threading.Lock()
         self._stop = threading.Event()

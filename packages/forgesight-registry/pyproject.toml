@@ -1,0 +1,36 @@
+[project]
+name = "forgesight-registry"
+version = "0.1.0"
+description = "ForgeSight registry — declared agent ownership auto-stamped onto runs; chargeback + catalogue rollups."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "finops", "chargeback", "registry", "ai-agents", "forgesight"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core", "PyYAML>=6.0"]
+
+[project.entry-points."forgesight.modules"]
+registry = "forgesight_registry:install"
+
+[project.entry-points."forgesight.registry_sources"]
+file = "forgesight_registry.source:FileSource"
+http = "forgesight_registry.source:HttpSource"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_registry"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }
