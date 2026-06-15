@@ -64,6 +64,7 @@ source_pkgs = [
     "forgesight_clickhouse",
     "forgesight_datadog",
     "forgesight_mcp",
+    "forgesight_fastapi",
 ]
 
 [tool.coverage.report]
