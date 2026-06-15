@@ -27,6 +27,7 @@ from forgesight_api import (
     EventListener,
     ExportResult,
     FrameworkAdapter,
+    GovernanceSignal,
     Interceptor,
     LifecycleEvent,
     PricingProvider,
@@ -220,6 +221,8 @@ class Runtime:
                 return None
             try:
                 current = interceptor.intercept(current)
+            except GovernanceSignal:
+                raise  # a deliberate governance halt propagates by design (feat-020), not swallowed
             except Exception:
                 _log.exception("interceptor %r raised; skipping it", interceptor)
         return current

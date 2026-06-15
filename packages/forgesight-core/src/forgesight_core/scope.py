@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Literal
 from forgesight_api import (
     ErrorInfo,
     EventType,
+    GovernanceSignal,
     Kind,
     LifecycleEvent,
     LLMCall,
@@ -129,7 +130,12 @@ class _Scope:
     def _exit(self, exc: BaseException | None) -> None:
         self._end = _now()
         if self._status is RunStatus.RUNNING:
-            self._status = RunStatus.ERROR if exc is not None else RunStatus.OK
+            if exc is None:
+                self._status = RunStatus.OK
+            elif isinstance(exc, GovernanceSignal):  # budget/policy/kill-switch trip (feat-020)
+                self._status = exc.run_status
+            else:
+                self._status = RunStatus.ERROR
         if exc is not None and self._error is None:
             self._error = _error_info(exc, None, self._rt.config)
         try:
