@@ -63,6 +63,7 @@ source_pkgs = [
     "forgesight_langfuse",
     "forgesight_clickhouse",
     "forgesight_datadog",
+    "forgesight_mcp",
 ]
 
 [tool.coverage.report]
