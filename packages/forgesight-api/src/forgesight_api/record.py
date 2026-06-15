@@ -69,6 +69,7 @@ class EventType(StrEnum):
     LLM_EXECUTED = "llm_executed"
     TOOL_EXECUTED = "tool_executed"
     MCP_EXECUTED = "mcp_executed"
+    EVALUATION_RECORDED = "evaluation_recorded"  # eval / human feedback (feat-021; open set, FR-8)
 
 
 @dataclass(frozen=True, slots=True)
