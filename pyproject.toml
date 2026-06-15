@@ -66,6 +66,8 @@ source_pkgs = [
     "forgesight_mcp",
     "forgesight_fastapi",
     "forgesight_github",
+    "forgesight_adapters_langgraph",
+    "forgesight_adapters_crewai",
 ]
 
 [tool.coverage.report]
