@@ -8,7 +8,7 @@ loading — the call site (``forgesight.configure()``) stays the same.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from opentelemetry.sdk.metrics.export import MetricReader
@@ -64,6 +64,7 @@ def configure(
     exporter_config: dict[str, dict[str, object]] | None = None,
     metrics: MetricConfig | None = None,
     metric_reader: MetricReader | None = None,
+    run_metadata_provider: Callable[[str, str | None], Mapping[str, str]] | None = None,
     config_file: str | None = None,
 ) -> Runtime:
     """Initialise the SDK (FR-12). Layered config: file → env → kwargs (last wins).
@@ -135,6 +136,9 @@ def configure(
     metric_config = metrics if metrics is not None else MetricConfig()
     if metric_config.enabled:
         rt.metrics = MetricsSubsystem(metric_config, metric_reader)
+
+    if run_metadata_provider is not None:  # registry ownership stamping (feat-022)
+        rt.run_metadata_provider = run_metadata_provider
 
     # Framework adapters (feat-019): only those named in the `adapters:` config block, so the
     # SDK's own process is never silently auto-instrumented.

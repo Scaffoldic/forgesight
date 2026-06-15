@@ -294,6 +294,12 @@ class RunScope(_ContainerScope):
         )
         metadata: dict[str, object] = dict(parent.metadata) if parent is not None else {}
         metadata.update(self._init_metadata)
+        # Run-start metadata provider (feat-022 registry stamps ownership here). Caller-set
+        # keys win, so the provider only fills keys not already present.
+        provider = self._rt.run_metadata_provider
+        if provider is not None:
+            for key, value in provider(self.name, self.version).items():
+                metadata.setdefault(key, value)
         return TelemetryContext(
             run_id=run_id,
             trace_id=trace_id,
