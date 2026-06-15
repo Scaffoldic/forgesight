@@ -12,6 +12,7 @@ manual validation (no Pydantic) to keep the core dependency-light (P1).
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections.abc import Callable, Mapping
@@ -31,6 +32,8 @@ from .cost import TablePricingProvider
 from .exporters import ConsoleExporter, InMemoryExporter
 from .interceptors import ContentCaptureGate, PIIRedactionInterceptor
 
+_log = logging.getLogger("forgesight.config")
+
 _ERRORS: dict[str, type[LookupError]] = {
     "exporters": ExporterNotRegisteredError,
     "interceptors": InterceptorNotRegisteredError,
@@ -38,6 +41,9 @@ _ERRORS: dict[str, type[LookupError]] = {
     "pricing": PricingProviderNotRegisteredError,
 }
 _REGISTRY: dict[str, dict[str, Callable[..., Any]]] = {group: {} for group in _ERRORS}
+# Adapters resolve like the other groups but never fail-fast — a missing framework warns
+# and is skipped (feat-019), so "adapters" has a registry slot but no entry in _ERRORS.
+_REGISTRY["adapters"] = {}
 
 # Built-in implementations resolve by name with no privileged path.
 _REGISTRY["exporters"]["console"] = ConsoleExporter
@@ -82,6 +88,40 @@ def _load_entry_point(group: str, name: str) -> Callable[..., Any] | None:
             loaded: Callable[..., Any] = entry_point.load()
             return loaded
     return None
+
+
+def load_adapters(settings: Mapping[str, Any]) -> list[Any]:
+    """Instantiate + instrument the adapters named in the ``adapters:`` config block (feat-019).
+
+    Driven by explicit config (not "instrument every installed adapter") so the SDK's own
+    process is never silently auto-instrumented. A named adapter resolves via the in-process
+    registry or the ``forgesight.adapters`` entry point; one whose framework isn't importable
+    warns and is skipped — never raises (P6). With ``auto_instrument: false`` the adapters are
+    created but left inert for the app to ``instrument()`` itself.
+    """
+    block = settings.get("adapters")
+    if not isinstance(block, Mapping):
+        return []
+    auto_instrument = bool(block.get("auto_instrument", True))
+    adapters: list[Any] = []
+    for name, opts in block.items():
+        if name == "auto_instrument":
+            continue
+        if isinstance(opts, Mapping) and not opts.get("enabled", True):
+            continue
+        factory = _REGISTRY["adapters"].get(name) or _load_entry_point("adapters", name)
+        if factory is None:
+            _log.warning("adapter %r is enabled but not installed; skipping", name)
+            continue
+        try:
+            adapter = factory()
+            if auto_instrument:
+                adapter.instrument()
+        except Exception:  # a framework that won't import must never fail configure() (P6)
+            _log.warning("adapter %r failed to load/instrument; skipping", name, exc_info=True)
+            continue
+        adapters.append(adapter)
+    return adapters
 
 
 def interpolate(value: object, env: Mapping[str, str]) -> object:

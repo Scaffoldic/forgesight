@@ -15,6 +15,7 @@ from forgesight_api import (
     EventListener,
     EventType,
     ExportResult,
+    FrameworkAdapter,
     Interceptor,
     Kind,
     LifecycleEvent,
@@ -89,7 +90,30 @@ def run_pricing_conformance(factory: Callable[[], PricingProvider]) -> None:
     assert zero is None or zero >= 0.0
 
 
+def run_adapter_conformance(factory: Callable[[], FrameworkAdapter]) -> None:
+    """name set; instrument/uninstrument/is_instrumented idempotent and reversible (feat-019)."""
+    adapter = factory()
+    assert isinstance(adapter.name, str), "adapter.name must be a str"
+    assert adapter.name, "adapter.name must be non-empty"
+    assert adapter.is_instrumented() is False, "a fresh adapter must not be instrumented"
+
+    adapter.instrument()
+    assert adapter.is_instrumented() is True, "instrument() must flip is_instrumented()"
+    adapter.instrument()  # idempotent — second call is a no-op, still instrumented
+    assert adapter.is_instrumented() is True
+
+    adapter.uninstrument()
+    assert adapter.is_instrumented() is False, "uninstrument() must flip is_instrumented()"
+    adapter.uninstrument()  # idempotent, must not raise
+    assert adapter.is_instrumented() is False
+
+    adapter.instrument()  # re-instrument after uninstrument works
+    assert adapter.is_instrumented() is True
+    adapter.uninstrument()
+
+
 __all__ = [
+    "run_adapter_conformance",
     "run_event_listener_conformance",
     "run_exporter_conformance",
     "run_interceptor_conformance",

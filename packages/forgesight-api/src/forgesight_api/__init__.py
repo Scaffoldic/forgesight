@@ -10,6 +10,7 @@ See ``docs/features/feat-001-core-domain-model-and-contracts.md``.
 
 from __future__ import annotations
 
+from .adapter import FrameworkAdapter
 from .errors import (
     EventListenerNotRegisteredError,
     ExporterNotRegisteredError,
@@ -44,6 +45,7 @@ __all__ = [
     "EventType",
     "ExportResult",
     "ExporterNotRegisteredError",
+    "FrameworkAdapter",
     "Interceptor",
     "InterceptorNotRegisteredError",
     "Kind",

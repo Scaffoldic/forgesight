@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from forgesight_api import (
     EventListener,
     ExportResult,
+    FrameworkAdapter,
     Interceptor,
     LifecycleEvent,
     PricingProvider,
@@ -85,6 +86,7 @@ class Runtime:
         self.sampled_out = 0
         self.listener_errors = 0
         self.metrics: MetricsSubsystem | None = None
+        self.adapters: list[FrameworkAdapter] = []  # framework adapters (feat-019)
         self._queue: queue.Queue[Record] = queue.Queue(maxsize=self.config.max_queue_size)
         self._export_lock = threading.Lock()
         self._stop = threading.Event()
@@ -103,6 +105,10 @@ class Runtime:
 
     def set_pricing(self, pricing: PricingProvider | None) -> None:
         self.pricing = pricing
+
+    def add_adapter(self, adapter: FrameworkAdapter) -> None:
+        """Track an instrumented framework adapter so shutdown can uninstrument it (feat-019)."""
+        self.adapters.append(adapter)
 
     # --- dispatch (hot path) ---------------------------------------------
     def emit_record(self, record: Record) -> None:
@@ -153,6 +159,12 @@ class Runtime:
         if self._shutdown:
             return
         self._shutdown = True
+        for adapter in self.adapters:  # unsubscribe framework hooks (feat-019)
+            try:
+                adapter.uninstrument()
+            except Exception:
+                _log.exception("adapter %r raised during uninstrument", adapter)
+        self.adapters.clear()
         self._stop.set()
         worker = self._worker
         if worker is not None:

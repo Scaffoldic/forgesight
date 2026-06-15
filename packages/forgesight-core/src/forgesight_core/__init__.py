@@ -6,6 +6,7 @@ Adapter authors (feat-019) use the context primitives and scopes here.
 
 from __future__ import annotations
 
+from .adapters import BaseAdapter, ScopeBridge, in_tool_call, tool_call_active
 from .config import register, resolve
 from .context import (
     TelemetryContext,
@@ -33,6 +34,7 @@ from .scope import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "BaseAdapter",
     "ConsoleExporter",
     "ContentCaptureGate",
     "InMemoryExporter",
@@ -45,6 +47,7 @@ __all__ = [
     "RunScope",
     "Runtime",
     "RuntimeConfig",
+    "ScopeBridge",
     "StepScope",
     "TablePricingProvider",
     "Telemetry",
@@ -56,6 +59,7 @@ __all__ = [
     "current_context",
     "current_run_scope",
     "get_runtime",
+    "in_tool_call",
     "instrument",
     "new_run_id",
     "new_span_id",
@@ -63,4 +67,5 @@ __all__ = [
     "reset_runtime",
     "resolve",
     "telemetry",
+    "tool_call_active",
 ]

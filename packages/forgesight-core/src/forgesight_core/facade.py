@@ -15,7 +15,7 @@ from opentelemetry.sdk.metrics.export import MetricReader
 
 from forgesight_api import EventListener, Interceptor, PricingProvider, TelemetryExporter
 
-from .config import load_settings, resolve
+from .config import load_adapters, load_settings, resolve
 from .cost import TablePricingProvider
 from .exporters import ConsoleExporter
 from .interceptors import ContentCaptureGate
@@ -135,6 +135,11 @@ def configure(
     metric_config = metrics if metrics is not None else MetricConfig()
     if metric_config.enabled:
         rt.metrics = MetricsSubsystem(metric_config, metric_reader)
+
+    # Framework adapters (feat-019): only those named in the `adapters:` config block, so the
+    # SDK's own process is never silently auto-instrumented.
+    for adapter in load_adapters(settings):
+        rt.add_adapter(adapter)
     return rt
 
 
