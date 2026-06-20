@@ -8,6 +8,14 @@ OpenTelemetry-first. Vendor-neutral. Never an agent-code change.**
 [![Python](https://img.shields.io/badge/python-3.11_|_3.12_|_3.13-blue.svg)](#quick-start)
 [![CI](https://img.shields.io/badge/CI-ruff_·_mypy--strict_·_pytest_≥90%25-brightgreen.svg)](./.github/workflows/ci.yml)
 
+<p align="center">
+  <img src="./docs/assets/demo.gif" width="820"
+       alt="ForgeSight demo — instrument an agent and see the trace, cost, and a verified tamper-evident audit trail" />
+</p>
+
+> ⬆️ Real output, no edits — `uv run python examples/demo.py` ([source](./examples/demo.py)).
+> Offline here; the same telemetry ships to any backend by changing one config line.
+
 ```python
 import forgesight
 from forgesight import telemetry
