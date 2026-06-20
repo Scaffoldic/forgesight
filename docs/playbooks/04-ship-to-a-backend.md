@@ -27,7 +27,7 @@
 ```python
 # OTLP (any OTel platform)
 forgesight.configure(exporters=["otel"], exporter_config={
-    "otel": {"endpoint": "https://collector.example.com:4317", "headers": {"x-api-key": "…"}},
+    "otel": {"endpoint": "https://collector.example.com:4318", "headers": {"x-api-key": "…"}},
 })
 
 # Langfuse

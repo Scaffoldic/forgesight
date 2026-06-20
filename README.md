@@ -118,7 +118,7 @@ from forgesight import telemetry
 forgesight.configure(
     service_name="my-agent",
     exporters=["otel"],
-    exporter_config={"otel": {"endpoint": "http://localhost:4317"}},
+    exporter_config={"otel": {"endpoint": "http://localhost:4318"}},  # OTLP/HTTP; :4317 for gRPC
 )
 
 # 2. Wrap your work. Everything nests automatically (sync OR async).

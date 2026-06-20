@@ -13,7 +13,7 @@
 services:
   # OTLP traces -> Jaeger all-in-one.  UI: http://localhost:16686
   jaeger:
-    image: jaegertracing/all-in-one:1.62
+    image: jaegertracing/all-in-one:1.62.0
     container_name: forgesight-jaeger
     environment:
       COLLECTOR_OTLP_ENABLED: "true"

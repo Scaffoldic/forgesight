@@ -12,6 +12,7 @@ production the OTLP exporter is built lazily from ``endpoint``/``protocol``/``he
 from __future__ import annotations
 
 from collections.abc import Sequence
+from urllib.parse import urlsplit, urlunsplit
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan
@@ -118,7 +119,7 @@ class OTelExporter:
         if protocol in ("http", "http/protobuf"):
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-            return OTLPSpanExporter(endpoint=endpoint, headers=headers)
+            return OTLPSpanExporter(endpoint=_http_traces_endpoint(endpoint), headers=headers)
         if protocol == "grpc":  # pragma: no cover - optional [grpc] extra
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-not-found]
                 OTLPSpanExporter as GrpcExporter,
@@ -126,6 +127,19 @@ class OTelExporter:
 
             return GrpcExporter(endpoint=endpoint, headers=headers)  # type: ignore[no-any-return]
         raise ValueError(f"unknown protocol {protocol!r}; expected 'grpc' or 'http/protobuf'")
+
+
+def _http_traces_endpoint(endpoint: str | None) -> str | None:
+    """For OTLP/HTTP, append the ``/v1/traces`` signal path when the caller gave only a base
+    URL. The OTLP/HTTP exporter does NOT append it when ``endpoint`` is set explicitly, so
+    ``http://host:4318`` would 404; a path already present (a custom collector route) is kept.
+    ``None`` is returned unchanged so the OTel env-var defaults still apply."""
+    if endpoint is None:
+        return None
+    parsed = urlsplit(endpoint)
+    if parsed.path in ("", "/"):
+        return urlunsplit(parsed._replace(path="/v1/traces"))
+    return endpoint
 
 
 def _status(status: RunStatus) -> Status:

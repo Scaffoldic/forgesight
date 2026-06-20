@@ -14,7 +14,7 @@ from opentelemetry.trace.status import StatusCode
 from forgesight_api import ExportResult, Kind, LLMCall, Record, RunStatus, TokenUsage
 from forgesight_core import configure, reset_runtime, telemetry
 from forgesight_otel import OTelExporter
-from forgesight_otel.exporter import _status
+from forgesight_otel.exporter import _http_traces_endpoint, _status
 
 TRACE = "4bf92f3577b34da6a3ce929d0e0e4736"
 
@@ -130,3 +130,18 @@ def test_end_to_end_through_runtime() -> None:
         assert agent_span.attributes["gen_ai.agent.version"] == "1.2.0"
     finally:
         reset_runtime()
+
+
+def test_http_traces_endpoint_appends_signal_path() -> None:
+    # a base URL gets /v1/traces appended (OTLP/HTTP does not append it when endpoint is set)
+    assert _http_traces_endpoint("http://localhost:4318") == "http://localhost:4318/v1/traces"
+    assert _http_traces_endpoint("http://localhost:4318/") == "http://localhost:4318/v1/traces"
+    assert _http_traces_endpoint("https://otlp.example.com") == "https://otlp.example.com/v1/traces"
+    # an explicit path (a custom collector route) is left untouched
+    assert (
+        _http_traces_endpoint("http://localhost:4318/v1/traces")
+        == "http://localhost:4318/v1/traces"
+    )
+    assert _http_traces_endpoint("http://collector/custom/path") == "http://collector/custom/path"
+    # None defers to the OTel env-var defaults
+    assert _http_traces_endpoint(None) is None
