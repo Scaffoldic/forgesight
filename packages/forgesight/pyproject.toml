@@ -33,6 +33,7 @@ github = ["forgesight-github ~= 0.1.0"]
 governance = ["forgesight-governance ~= 0.1.0"]
 eval = ["forgesight-eval ~= 0.1.0"]
 registry = ["forgesight-registry ~= 0.1.0"]
+audit = ["forgesight-audit ~= 0.1.0"]
 adapters-langgraph = ["forgesight-adapters-langgraph ~= 0.1.0"]
 # crewai keeps its heavy framework behind an optional extra on the adapter — chain it so the
 # framework is actually installed (otherwise the wrapper imports but the first call fails).
@@ -50,6 +51,7 @@ all = [
     "forgesight-governance ~= 0.1.0",
     "forgesight-eval ~= 0.1.0",
     "forgesight-registry ~= 0.1.0",
+    "forgesight-audit ~= 0.1.0",
     "forgesight-adapters-langgraph ~= 0.1.0",
 ]
 
@@ -75,5 +77,6 @@ forgesight-github = { workspace = true }
 forgesight-governance = { workspace = true }
 forgesight-eval = { workspace = true }
 forgesight-registry = { workspace = true }
+forgesight-audit = { workspace = true }
 forgesight-adapters-langgraph = { workspace = true }
 forgesight-adapters-crewai = { workspace = true }

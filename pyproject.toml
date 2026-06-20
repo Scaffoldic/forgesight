@@ -72,6 +72,7 @@ source_pkgs = [
     "forgesight_governance",
     "forgesight_eval",
     "forgesight_registry",
+    "forgesight_audit",
 ]
 
 [tool.coverage.report]
