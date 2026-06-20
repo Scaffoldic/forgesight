@@ -5,7 +5,7 @@ Derived automatically from the runtime's record stream; the agent author emits n
 
 from __future__ import annotations
 
-from .config import MetricConfig
+from .config import AttributionMetricsConfig, MetricConfig
 from .instruments import KNOWN_INSTRUMENTS, MetricsSubsystem
 
-__all__ = ["KNOWN_INSTRUMENTS", "MetricConfig", "MetricsSubsystem"]
+__all__ = ["KNOWN_INSTRUMENTS", "AttributionMetricsConfig", "MetricConfig", "MetricsSubsystem"]
