@@ -6,6 +6,8 @@ per-run cost accumulation. Run: ``uv run --no-sync python -m examples.agents.rea
 
 from __future__ import annotations
 
+from typing import Any
+
 from forgesight import telemetry
 
 from . import _demo
@@ -20,39 +22,39 @@ def search(query: str) -> str:
     return f"[search:{query}] ForgeSight is a vendor-neutral, OpenTelemetry-first telemetry SDK."
 
 
-def main() -> None:
-    sink = _demo.configure("react-agent", "/tmp/forgesight-react-audit.jsonl")
-    client = _demo.bedrock_client()
+def run(client: Any) -> None:
+    """The agent body — reused by ``main`` and by ``demo_all`` under a shared runtime."""
     question = "What is 21 times 2, and in one line, what does ForgeSight do?"
-
-    print("→ ReAct agent on", _demo.MODEL)
-    with telemetry.agent_run("react-agent", version="1.0.0", metadata=_demo.run_metadata()) as run:
-        # iteration 0: plan + gather tool results
-        with run.step("iteration-0"):
-            with run.llm_call("aws.bedrock", _demo.MODEL) as call:
-                plan, usage = _demo.chat(
+    print("→ ReAct agent")
+    with telemetry.agent_run(
+        "react-agent", version="1.0.0", metadata=_demo.run_metadata()
+    ) as agent:
+        with agent.step("iteration-0"):
+            with agent.llm_call("aws.bedrock", _demo.MODEL) as call:
+                _, usage = _demo.chat(
                     client,
                     f"You can use a calculator and a search tool. Plan how to answer: {question}",
                     max_tokens=120,
                 )
                 _demo.record(call, usage)
-            with run.tool_call("calculator"):
+            with agent.tool_call("calculator"):
                 calc = calculator(21, 2)
-            with run.tool_call("search"):
+            with agent.tool_call("search"):
                 docs = search("ForgeSight")
-
-        # iteration 1: synthesise the final answer from the observations
-        with run.step("iteration-1"), run.llm_call("aws.bedrock", _demo.MODEL) as call:
+        with agent.step("iteration-1"), agent.llm_call("aws.bedrock", _demo.MODEL) as call:
             answer, usage = _demo.chat(
                 client,
                 f"Question: {question}\nCalculator: {calc}\nSearch: {docs}\n"
-                "Answer in one short sentence.",
+                "Answer in one sentence.",
                 max_tokens=120,
             )
             _demo.record(call, usage)
-
-    print("  plan:", plan.replace("\n", " ")[:90], "…")
     print("  answer:", answer)
+
+
+def main() -> None:
+    sink = _demo.configure("react-agent", "/tmp/forgesight-react-audit.jsonl")
+    run(_demo.bedrock_client())
     _demo.report("react-agent", sink)
 
 

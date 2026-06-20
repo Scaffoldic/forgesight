@@ -7,17 +7,17 @@ cost rolls up across all three. Run: ``uv run --no-sync python -m examples.agent
 
 from __future__ import annotations
 
+from typing import Any
+
 from forgesight import telemetry
 
 from . import _demo
 
 
-def main() -> None:
-    sink = _demo.configure("multi-agent", "/tmp/forgesight-multi-audit.jsonl")
-    client = _demo.bedrock_client()
+def run(client: Any) -> None:
+    """The agent body — reused by ``main`` and by ``demo_all`` under a shared runtime."""
     topic = "why vendor-neutral agent telemetry matters"
-
-    print("→ Multi-agent pipeline on", _demo.MODEL)
+    print("→ Multi-agent pipeline")
     with telemetry.agent_run("supervisor", version="1.0.0", metadata=_demo.run_metadata()) as sup:
         # delegate to the researcher sub-agent (a nested run)
         with (
@@ -43,8 +43,12 @@ def main() -> None:
                 max_tokens=120,
             )
             _demo.record(call, usage)
-
     print("  summary:", draft)
+
+
+def main() -> None:
+    sink = _demo.configure("multi-agent", "/tmp/forgesight-multi-audit.jsonl")
+    run(_demo.bedrock_client())
     _demo.report("multi-agent", sink)
 
 
