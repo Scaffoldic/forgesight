@@ -15,6 +15,7 @@ dev = [
     "mypy>=1.13",
     "ruff>=0.8",
     "types-PyYAML>=6.0",
+    "diff-cover>=9.2",
 ]
 
 # ---------------------------------------------------------------------------
@@ -49,7 +50,7 @@ no_implicit_reexport = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["packages"]
-addopts = "-q --cov --cov-report=term-missing --cov-fail-under=90 --import-mode=importlib"
+addopts = "-q --cov --cov-report=term-missing --cov-report=xml --cov-fail-under=90 --import-mode=importlib"
 
 [tool.coverage.run]
 branch = true

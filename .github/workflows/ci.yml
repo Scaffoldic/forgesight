@@ -41,3 +41,39 @@ jobs:
 
       - name: Test + coverage (>= 90%)
         run: uv run pytest
+
+  # Patch coverage: NEW/changed lines in a PR must be >= 90% covered, even
+  # though the repo total already sits well above the floor. Catches under-
+  # tested code that the existing cushion would otherwise hide.
+  patch-coverage:
+    name: patch-coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Sync workspace
+        run: uv sync --all-packages
+
+      - name: Test + coverage xml
+        run: uv run pytest
+
+      - name: Diff coverage (changed lines >= 90%)
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          uv run diff-cover coverage.xml \
+            --compare-branch="origin/${{ github.base_ref }}" \
+            --fail-under=90 \
+            --markdown-report=patch-coverage.md
+
+      - name: Publish patch-coverage summary
+        if: always()
+        run: cat patch-coverage.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
