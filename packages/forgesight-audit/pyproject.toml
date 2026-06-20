@@ -1,0 +1,44 @@
+[project]
+name = "forgesight-audit"
+version = "0.1.0"
+description = "ForgeSight audit trail — a tamper-evident, hash-chained, complete-capture projection of agent telemetry with a compliance query/export surface."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "kjoshi" }]
+keywords = ["observability", "audit", "compliance", "governance", "ai-agents", "forgesight"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = ["forgesight-core"]
+
+# The audit listener resolves by name from `configure(listeners=["audit"])`.
+[project.entry-points."forgesight.listeners"]
+audit = "forgesight_audit:make_audit_listener"
+
+# Module-style install() for the `configure(...); forgesight_audit.install(cfg)` convention.
+[project.entry-points."forgesight.modules"]
+audit = "forgesight_audit:install"
+
+# Audit-sink drivers resolvable by name from the `audit.sink` config key.
+[project.entry-points."forgesight.audit_sinks"]
+jsonl  = "forgesight_audit.sinks.jsonl:JsonlAuditSink"
+sqlite = "forgesight_audit.sinks.sqlite:SqliteAuditSink"
+otel   = "forgesight_audit.sinks.otel:OtelAuditSink"
+siem   = "forgesight_audit.sinks.siem:SiemAuditSink"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgesight_audit"]
+
+[tool.uv.sources]
+forgesight-core = { workspace = true }
