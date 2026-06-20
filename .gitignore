@@ -22,6 +22,10 @@ uv.lock
 coverage.xml
 htmlcov/
 
+# secrets / local env (never commit)
+.env
+.env.*
+
 # editor / OS
 .DS_Store
 .idea/
@@ -29,3 +33,6 @@ htmlcov/
 
 # local-only session working state (per the workspace pipeline)
 .claude/state/
+
+# local-only launch planning (not part of the published repo)
+/launch/
