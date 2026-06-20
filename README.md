@@ -140,6 +140,45 @@ exporter_config:
 
 ---
 
+## Installation
+
+`pip install forgesight` gives you the core (`forgesight` + `forgesight-core` +
+`forgesight-api`). Add backends and integrations as **extras** — `pip install` them or list
+them in your `requirements.txt` / `pyproject.toml`. Installing the package *enables* a
+backend; config (`exporters=["otlp"]`) *selects* it.
+
+```bash
+pip install "forgesight[otel]"                 # one backend
+pip install "forgesight[otel,langfuse,datadog]" # several
+pip install "forgesight[all]"                  # everything except the heavy CrewAI tree
+```
+
+| Extra | Pulls | Use it for |
+|---|---|---|
+| `otel` | `forgesight-otel` | any OTLP backend (Honeycomb, Jaeger, Tempo, New Relic, Phoenix, …) |
+| `langfuse` | `forgesight-langfuse` | Langfuse observations + cost |
+| `datadog` | `forgesight-datadog` | Datadog APM + cost metric |
+| `clickhouse` | `forgesight-clickhouse` | columnar analytics |
+| `prometheus` | `forgesight-prometheus` | `/metrics` + push-gateway |
+| `mcp` | `forgesight-mcp` | MCP client/server spans + W3C propagation |
+| `fastapi` | `forgesight-fastapi` | request↔run correlation + flush-on-deploy |
+| `github` | `forgesight-github` | GitHub Actions run↔commit/PR/job + cost summary |
+| `governance` | `forgesight-governance` | budgets, policy, kill-switch |
+| `eval` | `forgesight-eval` | eval scores + human feedback |
+| `registry` | `forgesight-registry` | agent registry, ownership & chargeback |
+| `adapters-langgraph` | `forgesight-adapters-langgraph` | auto-instrument LangGraph/LangChain |
+| `adapters-crewai` | `forgesight-adapters-crewai[crewai]` | auto-instrument CrewAI (pulls CrewAI) |
+| `all` | every package above (except `adapters-crewai`) | the full toolkit |
+
+Each integration is also a standalone distribution (`pip install forgesight-otel`) if you'd
+rather pin them individually. Python 3.11–3.13.
+
+> Pre-PyPI: until the packages are published, install from a built wheel or a git checkout.
+> The PyPI release is tracked in `launch/` (publishing is automated via OIDC trusted
+> publishing on a version tag).
+
+---
+
 ## Packages
 
 A `uv` workspace with a three-tier model (ADR-0002): **contracts → runtime → integrations.**
