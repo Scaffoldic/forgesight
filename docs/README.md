@@ -4,7 +4,16 @@ Vendor-neutral, OpenTelemetry-first observability & execution-telemetry SDK for 
 agents. Track agent runs, LLM / tool / MCP calls, workflows, metrics, cost, and
 events — and export to any backend without vendor lock-in.
 
-## Start here
+## Using ForgeSight
+
+If you just want to instrument an agent and ship its telemetry:
+
+- **[`playbooks/`](./playbooks/)** — task-oriented how-to guides: install → instrument →
+  run locally with Docker → ship to a backend → FastAPI / GitHub Actions / governance.
+- **[`runbooks/`](./runbooks/)** — per-backend & per-integration reference: config knobs,
+  what it emits, how to operate it, troubleshooting (verified against the shipped source).
+
+## Understanding ForgeSight
 
 1. [`requirements.md`](./requirements.md) — *what* the SDK must do and the constraints
    it holds to (functional + non-functional requirements, traceability).
@@ -35,6 +44,8 @@ Cross-cutting designs that span features:
 ```
 docs/
 ├── README.md                 ← you are here
+├── playbooks/                ← setup & how-to guides (start here to use it)
+├── runbooks/                 ← per-backend/integration reference
 ├── requirements.md           ← product + engineering requirements
 ├── design/
 │   ├── architecture.md       ← canonical "how it works"

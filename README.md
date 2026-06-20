@@ -12,7 +12,7 @@ editing one line of config. Never an agent-code change.**
 import forgesight
 from forgesight import telemetry
 
-forgesight.configure(exporters=["otlp"])          # pick a backend by name — that's it
+forgesight.configure(exporters=["otel"])          # pick a backend by name — that's it
 
 with telemetry.agent_run("pr-reviewer", version="2.1.0", metadata={"team": "platform"}) as run:
     with run.llm_call("anthropic", "claude-sonnet-4-5") as call:
@@ -57,7 +57,7 @@ ForgeSight makes telemetry **infrastructure**, not glue:
 | Capability | Package | One-liner |
 |---|---|---|
 | **Instrument runs / LLM / tool / MCP calls** | `forgesight` | `with telemetry.agent_run(...) as run: ...` |
-| **Ship to an OTLP collector** (Honeycomb/Jaeger/Tempo/Phoenix/…) | `forgesight-otel` | `exporters=["otlp"]` |
+| **Ship to an OTLP collector** (Honeycomb/Jaeger/Tempo/Phoenix/…) | `forgesight-otel` | `exporters=["otel"]` |
 | **Langfuse** observations + cost | `forgesight-langfuse` | `exporters=["langfuse"]` |
 | **Datadog** APM + cost metric | `forgesight-datadog` | `exporters=["datadog"]` |
 | **ClickHouse** columnar analytics | `forgesight-clickhouse` | `exporters=["clickhouse"]` |
@@ -89,8 +89,8 @@ from forgesight import telemetry
 # 1. Configure once at startup. Zero-config → console/in-memory in dev.
 forgesight.configure(
     service_name="my-agent",
-    exporters=["otlp"],
-    exporter_config={"otlp": {"endpoint": "http://localhost:4317"}},
+    exporters=["otel"],
+    exporter_config={"otel": {"endpoint": "http://localhost:4317"}},
 )
 
 # 2. Wrap your work. Everything nests automatically (sync OR async).
@@ -134,7 +134,7 @@ Configuration layers **file → env → kwargs** (last wins), so the same code r
 service_name: my-agent
 exporters: [otlp, langfuse]
 exporter_config:
-  otlp:     { endpoint: "${OTEL_COLLECTOR}" }
+  otel:     { endpoint: "${OTEL_COLLECTOR}" }
   langfuse: { public_key: "${LANGFUSE_PUBLIC_KEY}", secret_key: "${LANGFUSE_SECRET_KEY}" }
 ```
 
@@ -145,7 +145,7 @@ exporter_config:
 `pip install forgesight` gives you the core (`forgesight` + `forgesight-core` +
 `forgesight-api`). Add backends and integrations as **extras** — `pip install` them or list
 them in your `requirements.txt` / `pyproject.toml`. Installing the package *enables* a
-backend; config (`exporters=["otlp"]`) *selects* it.
+backend; config (`exporters=["otel"]`) *selects* it.
 
 ```bash
 pip install "forgesight[otel]"                 # one backend
@@ -176,6 +176,36 @@ rather pin them individually. Python 3.11–3.13.
 > Pre-PyPI: until the packages are published, install from a built wheel or a git checkout.
 > The PyPI release is tracked in `launch/` (publishing is automated via OIDC trusted
 > publishing on a version tag).
+
+---
+
+## Guides & runbooks
+
+Two doc tracks under [`docs/`](./docs) get you from zero to production:
+
+- **[Playbooks](./docs/playbooks/)** — step-by-step how-to guides:
+  [install](./docs/playbooks/01-install.md) ·
+  [instrument your agent](./docs/playbooks/02-instrument-your-agent.md) ·
+  [run locally with Docker](./docs/playbooks/03-run-locally-with-docker.md) ·
+  [ship to a backend](./docs/playbooks/04-ship-to-a-backend.md) ·
+  [FastAPI](./docs/playbooks/05-instrument-a-fastapi-service.md) ·
+  [GitHub Actions](./docs/playbooks/06-instrument-github-actions.md) ·
+  [governance & budgets](./docs/playbooks/07-governance-and-budgets.md)
+- **[Runbooks](./docs/runbooks/)** — per-backend/integration reference: config knobs, what it
+  emits, how to operate it, and troubleshooting — one per exporter, integration, adapter, and
+  the export pipeline.
+
+**See it working in 60 seconds** — the repo ships a [`docker-compose.yml`](./docker-compose.yml)
+with Jaeger (OTLP), Prometheus, and ClickHouse:
+
+```bash
+docker compose up -d jaeger
+pip install "forgesight[otel]"
+# configure exporters=["otel"] -> run your agent -> open http://localhost:16686
+```
+
+Full walkthrough: [Run locally with Docker](./docs/playbooks/03-run-locally-with-docker.md).
+A complete, validated example lives in [`examples/agentforge-agent/`](./examples/agentforge-agent/).
 
 ---
 

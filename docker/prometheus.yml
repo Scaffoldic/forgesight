@@ -1,0 +1,11 @@
+# Minimal Prometheus config for local ForgeSight development.
+# Scrapes the agent's Prometheus exporter, which serves /metrics on :9464 by
+# default (PrometheusExporter(host=..., port=9464)). The agent runs on the host,
+# so we scrape host.docker.internal (mapped via extra_hosts in docker-compose).
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: forgesight-agent
+    static_configs:
+      - targets: ["host.docker.internal:9464"]
