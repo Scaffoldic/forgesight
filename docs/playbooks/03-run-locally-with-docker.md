@@ -2,14 +2,14 @@
 
 > Goal: bring up real backends on your laptop and watch your agent's telemetry land in them.
 
-The repo ships a [`docker-compose.yml`](../../docker-compose.yml) with the three
-local-friendly backends. Start only what you need.
+The repo ships a [`docker-compose.yml`](../../docker-compose.yml) with the local-friendly
+backends plus **Grafana** for dashboards. Start only what you need.
 
 ```bash
 docker compose up -d jaeger        # OTLP traces  -> forgesight[otel]
 docker compose up -d prometheus    # metrics      -> forgesight[prometheus]
 docker compose up -d clickhouse    # analytics    -> forgesight[clickhouse]
-docker compose up -d               # the whole stack
+docker compose up -d               # the whole stack (incl. Grafana)
 ```
 
 | Service | Image | Ports | UI |
@@ -17,6 +17,11 @@ docker compose up -d               # the whole stack
 | `jaeger` | jaegertracing/all-in-one | 4317 (OTLP gRPC), 4318 (OTLP HTTP), 16686 | http://localhost:16686 |
 | `prometheus` | prom/prometheus | 9090 | http://localhost:9090 |
 | `clickhouse` | clickhouse/clickhouse-server | 8123 (HTTP), 9000 (native) | — (HTTP/CLI) |
+| `grafana` | grafana/grafana | 3000 | http://localhost:3000 (anonymous, no login) |
+
+> **OTLP/HTTP endpoint:** use the base URL `http://localhost:4318` (the exporter appends
+> `/v1/traces`). For gRPC use `endpoint: "localhost:4317"` + `protocol: "grpc"` (needs the
+> `forgesight-otel[grpc]` extra).
 
 ## A. Traces in Jaeger (OTLP)
 
@@ -100,12 +105,29 @@ docker exec -it forgesight-clickhouse clickhouse-client \
 See the [ClickHouse runbook](../runbooks/exporter-clickhouse.md) for the schema and the
 production migration (don't rely on `create_table` in prod).
 
+## D. Dashboards in Grafana
+
+`docker compose up -d grafana` brings up Grafana at <http://localhost:3000> (anonymous
+admin, no login) with **Prometheus** + **Jaeger** datasources and a starter *ForgeSight —
+agent telemetry* dashboard (runs, cost, failures, p95 latency, cost-by-provider, tokens)
+pre-provisioned. Point your agent at `exporters=["prometheus"]` (and `["otel"]` for traces),
+run it, and the panels populate.
+
+> ⚠️ **Short-lived agents under-count in Grafana.** Prometheus *pulls* `:9464` every 5s, but
+> a one-shot agent process lives only a few seconds and its counters reset each run — so a
+> scrape rarely lands. Traces (pushed per run) are always complete in Jaeger; the *pull
+> metrics* need a long-lived target. Use the combined runner that keeps `:9464` up while
+> Prometheus scrapes the accumulated totals:
+> `uv run --no-sync python -m examples.agents.demo_all` (then refresh Grafana). In production,
+> use the Prometheus **push-gateway** (`prometheus` exporter `push_gateway=…`) for short jobs.
+
 ## A complete, runnable example
 
-[`examples/agentforge-agent/`](../../examples/agentforge-agent/) is a full AgentForge agent
-instrumented with ForgeSight, validated end-to-end **offline** (in-memory + console) and
-against a **real OTLP→Jaeger** backend (`agent_otlp.py` + its own `docker-compose.yml`). Read
-its README for the cross-workspace run recipe.
+[`examples/agents/`](../../examples/agents/) has three real **AWS Bedrock** agents (ReAct,
+RAG, multi-agent) instrumented end-to-end — traces → Jaeger, metrics → Prometheus/Grafana,
+hash-chained audit, attributed cost. [`examples/bedrock-e2e/`](../../examples/bedrock-e2e/) is
+a single-call e2e, and [`examples/agentforge-agent/`](../../examples/agentforge-agent/) is the
+framework-adapter showcase (validated offline **and** against a real OTLP→Jaeger backend).
 
 ## Tear down
 

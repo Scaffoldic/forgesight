@@ -77,3 +77,18 @@ jobs:
       - name: Publish patch-coverage summary
         if: always()
         run: cat patch-coverage.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+  # Secret scanning — fail the build if any credential is committed (full history, not just
+  # the diff), so nothing leaks before/after the repo goes public. Runs on push + PRs.
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan every commit, not just the tip
+
+      - name: gitleaks (detect secrets in history + tree)
+        run: >-
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest
+          detect --source /repo --redact --no-banner
