@@ -17,7 +17,7 @@ import forgesight
 forgesight.configure(
     service_name="my-agent",
     exporters=["otel"],                                   # pick a backend by name
-    exporter_config={"otel": {"endpoint": "http://localhost:4317"}},
+    exporter_config={"otel": {"endpoint": "http://localhost:4318"}},  # OTLP/HTTP (:4317 for gRPC)
 )
 ```
 

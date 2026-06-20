@@ -210,9 +210,20 @@ class _ContainerScope(_Scope):
         return StepScope(self._rt, name=name, metadata=metadata)
 
     def llm_call(
-        self, provider: str, model: str, *, metadata: dict[str, object] | None = None
+        self,
+        provider: str,
+        model: str,
+        *,
+        metadata: dict[str, object] | None = None,
+        projected_tokens: dict[str, int] | None = None,
     ) -> LLMScope:
-        return LLMScope(self._rt, provider=provider, model=model, metadata=metadata)
+        return LLMScope(
+            self._rt,
+            provider=provider,
+            model=model,
+            metadata=metadata,
+            projected_tokens=projected_tokens,
+        )
 
     def tool_call(
         self,
@@ -450,11 +461,46 @@ class LLMScope(_LeafScope):
         provider: str,
         model: str,
         metadata: dict[str, object] | None = None,
+        projected_tokens: dict[str, int] | None = None,
     ) -> None:
         super().__init__(runtime, name=model, kind=Kind.LLM)
         self._call = LLMCall(provider=provider, request_model=model)
         if metadata:
             self._own_md.update(metadata)
+        self._projected_tokens = projected_tokens
+
+    def _enter(self) -> None:
+        super()._enter()
+        # Pre-call budget projection (feat-026): when the caller declares projected token
+        # counts, run the projection hook on a START record so a cap can deny the call
+        # BEFORE it is made. A GovernanceSignal vetoes the call (the `with` body never runs).
+        if self._projected_tokens is not None:
+            try:
+                self._rt.run_precall_interceptors(self._build_start_record())
+            except GovernanceSignal:
+                if self._token is not None:
+                    reset_current_context(self._token)  # don't leak the context on veto
+                raise
+
+    def _build_start_record(self) -> Record:
+        projected = self._projected_tokens or {}
+        usage = TokenUsage(input=projected.get("input", 0), output=projected.get("max_tokens", 0))
+        start_call = LLMCall(
+            provider=self._call.provider, request_model=self._call.request_model, usage=usage
+        )
+        return Record(
+            kind=Kind.LLM,
+            run_id=self.run_id,
+            trace_id=self.trace_id,
+            span_id=self.span_id,
+            parent_span_id=self.parent_span_id,
+            name=self._call.request_model,
+            status=RunStatus.RUNNING,
+            start_unix_nanos=self._start,
+            end_unix_nanos=None,
+            attributes=self._frozen_attrs(self._merged_attrs()),
+            llm=start_call,
+        )
 
     def record_usage(
         self,

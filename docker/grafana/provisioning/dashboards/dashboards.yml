@@ -1,0 +1,13 @@
+# Load dashboards from /var/lib/grafana/dashboards (mounted from docker/grafana/dashboards).
+apiVersion: 1
+
+providers:
+  - name: forgesight
+    orgId: 1
+    folder: ForgeSight
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

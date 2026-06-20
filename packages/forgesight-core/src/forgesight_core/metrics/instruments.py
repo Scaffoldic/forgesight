@@ -12,7 +12,7 @@ owns the instruments + a default in-memory reader.
 
 from __future__ import annotations
 
-from opentelemetry.metrics import Counter, Histogram, Meter
+from opentelemetry.metrics import Counter, Histogram, Meter, _Gauge
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader, MetricReader
 from opentelemetry.sdk.metrics.view import ExplicitBucketHistogramAggregation, View
@@ -68,6 +68,9 @@ M_OP_DURATION = "gen_ai.client.operation.duration"
 M_TTFC = "gen_ai.client.operation.time_to_first_chunk"
 M_WORKFLOW_DURATION = "gen_ai.workflow.duration"
 M_MCP_DURATION = "mcp.client.operation.duration"
+# feat-026 — live cost attribution. forgesight.* (never gen_ai.*: OTel defines no cost metric).
+M_COST_ATTRIBUTED = "forgesight.cost.attributed_usd"
+M_BUDGET_UTIL = "forgesight.cost.budget_utilization"
 
 KNOWN_INSTRUMENTS = frozenset(
     {
@@ -82,6 +85,8 @@ KNOWN_INSTRUMENTS = frozenset(
         M_TTFC,
         M_WORKFLOW_DURATION,
         M_MCP_DURATION,
+        M_COST_ATTRIBUTED,
+        M_BUDGET_UTIL,
     }
 )
 
@@ -116,10 +121,12 @@ class MetricsSubsystem:
             for name, buckets in _GENAI_VIEWS.items()
             if self._on(name)
         ]
+        self._attribution = config.attribution
         self._provider = MeterProvider(metric_readers=[self._reader], views=views)
         meter = self._provider.get_meter("forgesight")
         self._counters: dict[str, Counter] = {}
         self._histos: dict[str, Histogram] = {}
+        self._gauges: dict[str, _Gauge] = {}
         self._build(meter)
 
     @property
@@ -197,6 +204,21 @@ class MetricsSubsystem:
             self._hist(M_TTFC, llm.time_to_first_chunk_ms / 1000.0, base)
         if llm.cost_usd is not None:
             self._add(M_COST, llm.cost_usd, {"gen_ai.provider.name": llm.provider})
+            if self._attribution.enabled:
+                attrs = {
+                    dim: str(record.attributes.get(dim, self._attribution.unattributed_label))
+                    for dim in self._attribution.dimensions
+                }
+                attrs["gen_ai.provider.name"] = llm.provider
+                self._add(M_COST_ATTRIBUTED, llm.cost_usd, attrs)
+
+    def set_budget_utilization(self, value: float, attrs: dict[str, str]) -> None:
+        """Record the spend/cap ratio for a budget scope key (feat-026). Called by the
+        governance ``BudgetInterceptor`` through the runtime — core stays vendor-neutral
+        (the instrument is a generic gauge; the budget semantics live in governance)."""
+        gauge = self._gauges.get(M_BUDGET_UTIL)
+        if gauge is not None:
+            gauge.set(value, attrs)
 
     # --- instrument helpers ----------------------------------------------
     def _on(self, name: str) -> bool:
@@ -209,6 +231,7 @@ class MetricsSubsystem:
             M_COST: "usd",
             M_TOOL: "{invocation}",
             M_MCP: "{invocation}",
+            M_COST_ATTRIBUTED: "usd",
         }
         histos = {
             M_AGENT_DURATION: "ms",
@@ -218,12 +241,16 @@ class MetricsSubsystem:
             M_WORKFLOW_DURATION: "s",
             M_MCP_DURATION: "s",
         }
+        gauges = {M_BUDGET_UTIL: "1"}
         for name, unit in counters.items():
             if self._on(name):
                 self._counters[name] = meter.create_counter(name, unit=unit)
         for name, unit in histos.items():
             if self._on(name):
                 self._histos[name] = meter.create_histogram(name, unit=unit)
+        for name, unit in gauges.items():
+            if self._on(name):
+                self._gauges[name] = meter.create_gauge(name, unit=unit)
 
     def _add(self, name: str, value: float, attrs: dict[str, str]) -> None:
         counter = self._counters.get(name)

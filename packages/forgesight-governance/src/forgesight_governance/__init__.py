@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from forgesight_api import GovernanceSignal
 
-from .budget import BudgetCap, BudgetExceeded, BudgetInterceptor, BudgetScope
+from .budget import (
+    BudgetCap,
+    BudgetExceeded,
+    BudgetInterceptor,
+    BudgetScope,
+    ProjectionConfig,
+)
 from .kill_switch import (
     EnvKillSwitchSource,
     FileKillSwitchSource,
@@ -31,5 +37,6 @@ __all__ = [
     "PolicyDenied",
     "PolicyInterceptor",
     "PolicyRule",
+    "ProjectionConfig",
     "__version__",
 ]

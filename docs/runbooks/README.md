@@ -30,7 +30,8 @@ shipped package source.
 | Topic | Extra | Runbook |
 |---|---|---|
 | LangGraph / CrewAI auto-instrumentation (zero agent change) | `adapters-langgraph`, `adapters-crewai` | [framework-adapters](./framework-adapters.md) |
-| Cost budgets, policy & kill-switch | `governance` | [governance](./governance.md) |
+| Cost budgets, policy & kill-switch (+ pre-call projection) | `governance` | [governance](./governance.md) |
+| Tamper-evident audit trail + compliance query/export | `audit` | [audit-trail](./audit-trail.md) |
 | Eval scores & human feedback | `eval` | [evaluations](./evaluations.md) |
 | Agent registry, ownership & chargeback | `registry` | [registry-chargeback](./registry-chargeback.md) |
 

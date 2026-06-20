@@ -230,6 +230,24 @@ class Runtime:
                 _log.exception("interceptor %r raised; skipping it", interceptor)
         return current
 
+    def run_precall_interceptors(self, record: Record) -> None:
+        """Run the pre-call projection hook on an LLM-call start record (feat-026).
+
+        Only interceptors exposing a ``precall`` method participate (the budget
+        interceptor's projection mode) — so policy/kill-switch behaviour is unchanged.
+        A ``GovernanceSignal`` propagates to veto the call *before* it is made; any other
+        error is isolated (P6)."""
+        for interceptor in self.interceptors:
+            precall = getattr(interceptor, "precall", None)
+            if precall is None:
+                continue
+            try:
+                precall(record)
+            except GovernanceSignal:
+                raise
+            except Exception:
+                _log.exception("precall interceptor %r raised; skipping it", interceptor)
+
     def _safe_export(self, exporter: TelemetryExporter, batch: Sequence[Record]) -> None:
         try:
             result = exporter.export(batch)

@@ -51,6 +51,12 @@ def basic_auth_header(public_key: str, secret_key: str) -> str:
     return f"Basic {token}"
 
 
+def otlp_traces_endpoint(host: str) -> str:
+    """Langfuse's OTLP/HTTP traces URL: the ``/v1/traces`` signal under ``/api/public/otel``.
+    The signal path is required — posting to the bare ``/api/public/otel`` base 404s."""
+    return f"{host.rstrip('/')}/api/public/otel/v1/traces"
+
+
 class LangfuseExporter:
     """Export records to Langfuse over OTLP with native ``langfuse.*`` enrichment."""
 
@@ -69,7 +75,7 @@ class LangfuseExporter:
         resolved_host = host or _REGION_HOSTS.get((region or "").lower(), _REGION_HOSTS["eu"])
         self._host = resolved_host.rstrip("/")
         self._otel = OTelExporter(
-            endpoint=f"{self._host}/api/public/otel",
+            endpoint=otlp_traces_endpoint(self._host),
             protocol="http/protobuf",
             service_name="forgesight",
             capture_content=capture_content,

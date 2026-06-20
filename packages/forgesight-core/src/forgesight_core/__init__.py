@@ -19,7 +19,7 @@ from .decorator import instrument
 from .exporters import ConsoleExporter, InMemoryExporter
 from .facade import Telemetry, configure, telemetry
 from .interceptors import ContentCaptureGate, PIIRedactionInterceptor
-from .metrics import MetricConfig, MetricsSubsystem
+from .metrics import AttributionMetricsConfig, MetricConfig, MetricsSubsystem
 from .processor import Runtime, RuntimeConfig, get_runtime, reset_runtime
 from .scope import (
     LLMScope,
@@ -34,6 +34,7 @@ from .scope import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "AttributionMetricsConfig",
     "BaseAdapter",
     "ConsoleExporter",
     "ContentCaptureGate",

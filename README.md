@@ -1,12 +1,20 @@
 # ForgeSight
 
-**Vendor-neutral, OpenTelemetry-first telemetry for AI agents — instrument any agent in
-a few lines, then ship traces, metrics, cost, evals, and governance to any backend by
-editing one line of config. Never an agent-code change.**
+**Instrument any AI agent in a few lines — then ship traces, cost, metrics, evals, budgets,
+and a tamper-evident audit trail to any backend by changing one line of config.
+OpenTelemetry-first. Vendor-neutral. Never an agent-code change.**
 
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11_|_3.12_|_3.13-blue.svg)](#quick-start)
 [![CI](https://img.shields.io/badge/CI-ruff_·_mypy--strict_·_pytest_≥90%25-brightgreen.svg)](./.github/workflows/ci.yml)
+
+<p align="center">
+  <img src="./docs/assets/demo.gif" width="820"
+       alt="ForgeSight demo — instrument an agent and see the trace, cost, and a verified tamper-evident audit trail" />
+</p>
+
+> ⬆️ Real output, no edits — `uv run python examples/demo.py` ([source](./examples/demo.py)).
+> Offline here; the same telemetry ships to any backend by changing one config line.
 
 ```python
 import forgesight
@@ -66,9 +74,11 @@ ForgeSight makes telemetry **infrastructure**, not glue:
 | **FastAPI** request↔run correlation + flush-on-deploy | `forgesight-fastapi` | `app.add_middleware(AgentForgeMiddleware)` |
 | **GitHub Actions** run↔commit/PR/job + cost summary | `forgesight-github` | `bootstrap()` |
 | **LangGraph / CrewAI** auto-instrument (zero agent change) | `forgesight-adapters-*` | `LangGraphAdapter().instrument()` |
-| **Budgets, policy & kill-switch** | `forgesight-governance` | `interceptors=["budget","policy","kill-switch"]` |
+| **Budgets, policy & kill-switch** (+ **pre-call** budget projection) | `forgesight-governance` | `interceptors=["budget","policy","kill-switch"]` |
+| **Live attributed cost** (by team/owner) + budget-utilization metrics | `forgesight-core` | `attribution.cost_metrics.enabled` |
 | **Eval scores & human feedback** | `forgesight-eval` | `record_evaluation("faithfulness", score=0.91)` |
 | **Agent registry, ownership & chargeback** | `forgesight-registry` | `run_metadata_provider=reg.ownership_metadata` |
+| **Tamper-evident audit trail** + compliance query/export | `forgesight-audit` | `listeners=["audit"]` |
 
 It tracks: agent runs · workflows · steps · LLM calls (tokens/cost/latency) · tool calls ·
 MCP calls · metrics · traces · cost · lifecycle events + arbitrary business metadata.
@@ -118,7 +128,7 @@ from forgesight import telemetry
 forgesight.configure(
     service_name="my-agent",
     exporters=["otel"],
-    exporter_config={"otel": {"endpoint": "http://localhost:4317"}},
+    exporter_config={"otel": {"endpoint": "http://localhost:4318"}},  # OTLP/HTTP; :4317 for gRPC
 )
 
 # 2. Wrap your work. Everything nests automatically (sync OR async).
@@ -206,9 +216,10 @@ pip install "forgesight[all]"                  # everything except the heavy Cre
 | `mcp` | `forgesight-mcp` | MCP client/server spans + W3C propagation |
 | `fastapi` | `forgesight-fastapi` | request↔run correlation + flush-on-deploy |
 | `github` | `forgesight-github` | GitHub Actions run↔commit/PR/job + cost summary |
-| `governance` | `forgesight-governance` | budgets, policy, kill-switch |
+| `governance` | `forgesight-governance` | budgets, policy, kill-switch, pre-call projection |
 | `eval` | `forgesight-eval` | eval scores + human feedback |
 | `registry` | `forgesight-registry` | agent registry, ownership & chargeback |
+| `audit` | `forgesight-audit` | tamper-evident audit trail + compliance query/export |
 | `adapters-langgraph` | `forgesight-adapters-langgraph` | auto-instrument LangGraph/LangChain |
 | `adapters-crewai` | `forgesight-adapters-crewai[crewai]` | auto-instrument CrewAI (pulls CrewAI) |
 | `all` | every package above (except `adapters-crewai`) | the full toolkit |
@@ -239,16 +250,20 @@ Two doc tracks under [`docs/`](./docs) get you from zero to production:
   the export pipeline.
 
 **See it working in 60 seconds** — the repo ships a [`docker-compose.yml`](./docker-compose.yml)
-with Jaeger (OTLP), Prometheus, and ClickHouse:
+with Jaeger (OTLP), Prometheus, ClickHouse, and **Grafana** (dashboards at `:3000`):
 
 ```bash
-docker compose up -d jaeger
+docker compose up -d
 pip install "forgesight[otel]"
-# configure exporters=["otel"] -> run your agent -> open http://localhost:16686
+# configure exporters=["otel"] -> run your agent -> open http://localhost:16686 (traces)
+#                                                    and http://localhost:3000  (Grafana)
 ```
 
 Full walkthrough: [Run locally with Docker](./docs/playbooks/03-run-locally-with-docker.md).
-A complete, validated example lives in [`examples/agentforge-agent/`](./examples/agentforge-agent/).
+Runnable, validated examples — real **AWS Bedrock** agents instrumented end-to-end (traces +
+cost + audit + Grafana): [`examples/agents/`](./examples/agents/) (ReAct / RAG / multi-agent)
+and [`examples/bedrock-e2e/`](./examples/bedrock-e2e/); plus the framework-adapter showcase in
+[`examples/agentforge-agent/`](./examples/agentforge-agent/).
 
 ---
 
@@ -264,7 +279,8 @@ A `uv` workspace with a three-tier model (ADR-0002): **contracts → runtime →
   `telemetry`, `@instrument`, entry-point auto-load).
 - **Integrations** — `-otel`, `-langfuse`, `-datadog`, `-clickhouse`, `-prometheus`,
   `-mcp`, `-fastapi`, `-github`, `-adapters-langgraph`, `-adapters-crewai`,
-  `-governance`, `-eval`, `-registry`. Each wraps exactly one backend/target; never on core.
+  `-governance`, `-eval`, `-registry`, `-audit`. Each wraps exactly one backend/target;
+  never on core.
 
 See [`docs/`](./docs) for the requirements, architecture, ADRs, and the per-feature specs.
 

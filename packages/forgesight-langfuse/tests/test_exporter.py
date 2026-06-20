@@ -10,6 +10,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from forgesight_core import configure, reset_runtime, telemetry
 from forgesight_core.testing.conformance import run_exporter_conformance
 from forgesight_langfuse import LangfuseExporter, basic_auth_header
+from forgesight_langfuse.exporter import otlp_traces_endpoint
 
 
 def _exporter(sink: InMemorySpanExporter, **kw: object) -> LangfuseExporter:
@@ -92,3 +93,15 @@ def test_cost_is_ingested_as_extension_attr() -> None:
         assert gen.attributes["forgesight.usage.cost_usd"] is not None  # SDK cost ingested
     finally:
         reset_runtime()
+
+
+def test_otlp_traces_endpoint_has_signal_path() -> None:
+    # Langfuse's OTLP/HTTP ingest needs the /v1/traces signal path; the bare base 404s.
+    assert (
+        otlp_traces_endpoint("https://us.cloud.langfuse.com")
+        == "https://us.cloud.langfuse.com/api/public/otel/v1/traces"
+    )
+    assert (
+        otlp_traces_endpoint("https://self-hosted.example/")
+        == "https://self-hosted.example/api/public/otel/v1/traces"
+    )
