@@ -24,6 +24,12 @@ dependencies = ["forgesight-core", "prometheus-client>=0.20"]
 [project.entry-points."forgesight.exporters"]
 prometheus = "forgesight_prometheus.exporter:PrometheusExporter"
 
+[project.urls]
+Homepage = "https://github.com/Scaffoldic/forgesight"
+Repository = "https://github.com/Scaffoldic/forgesight"
+Issues = "https://github.com/Scaffoldic/forgesight/issues"
+Changelog = "https://github.com/Scaffoldic/forgesight/blob/main/docs/releases/v0.1.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

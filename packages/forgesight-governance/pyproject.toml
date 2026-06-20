@@ -26,6 +26,12 @@ budget = "forgesight_governance.budget:BudgetInterceptor.from_config"
 policy = "forgesight_governance.policy:PolicyInterceptor.from_config"
 kill-switch = "forgesight_governance.kill_switch:KillSwitch.from_config"
 
+[project.urls]
+Homepage = "https://github.com/Scaffoldic/forgesight"
+Repository = "https://github.com/Scaffoldic/forgesight"
+Issues = "https://github.com/Scaffoldic/forgesight/issues"
+Changelog = "https://github.com/Scaffoldic/forgesight/blob/main/docs/releases/v0.1.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
