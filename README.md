@@ -1,8 +1,8 @@
 # ForgeSight
 
-**Vendor-neutral, OpenTelemetry-first telemetry for AI agents — instrument any agent in
-a few lines, then ship traces, metrics, cost, evals, and governance to any backend by
-editing one line of config. Never an agent-code change.**
+**Instrument any AI agent in a few lines — then ship traces, cost, metrics, evals, budgets,
+and a tamper-evident audit trail to any backend by changing one line of config.
+OpenTelemetry-first. Vendor-neutral. Never an agent-code change.**
 
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11_|_3.12_|_3.13-blue.svg)](#quick-start)
