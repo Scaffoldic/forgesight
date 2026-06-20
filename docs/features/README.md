@@ -35,6 +35,12 @@
   feedback capture.
 - **0.4 — registry & TypeScript parity.** Agent registry / catalogue / ownership /
   chargeback analytics; TypeScript reaches the 0.2 surface.
+- **0.5 — accountability & control.** A tamper-evident audit trail with a compliance
+  query/export surface (feat-023), a stable agent identity stamped on every signal
+  (feat-024), a declarative runtime policy DSL whose allow/deny decisions are recorded
+  (feat-025), live attributed-cost metrics + pre-call budget projection (feat-026), and a
+  pinned, conformance-tested GenAI semantic-convention mapping with a controlled migration
+  window (feat-027). Each extends a locked surface already shipped — additions, not rewrites.
 - **1.0 — stability bar.** Contracts frozen, semver enforced, full backend +
   governance stack, multi-language parity policy in force.
 
@@ -87,6 +93,16 @@
 |---|---|---|---|---|---|
 | **feat-022** | Agent registry, ownership & chargeback analytics | proposed | 0.4 | both | `forgesight-registry` |
 
+### Accountability & control (0.5)
+
+| ID | Title | Status | Target | Languages | Package(s) |
+|---|---|---|---|---|---|
+| **feat-023** | Tamper-evident audit trail & compliance export (hash-chained record, complete capture, query/export surface) | proposed | 0.5 | both | `forgesight-audit` |
+| **feat-024** | Agent identity & principal attribution (a stable principal stamped on every run/span/metric/event) | proposed | 0.5 | both | `forgesight-identity` |
+| **feat-025** | Declarative policy & decision records (version-controlled runtime policy DSL; recorded allow/deny) | proposed | 0.5 | both | `forgesight-policy` |
+| **feat-026** | Cost attribution metrics & pre-call budget projection (live per-owner cost + deny-before-spend) | proposed | 0.5 | both | `forgesight-core`, `forgesight-governance` |
+| **feat-027** | GenAI semconv version pinning & conformance (declared pin, CI snapshot, dual-emit migration window) | proposed | 0.5 | both | `forgesight-otel` |
+
 ---
 
 ## Dependency order (critical path)
@@ -107,6 +123,11 @@ feat-003 ──► feat-014 (ClickHouse)
 feat-002 ──► feat-016 (MCP), feat-017 (FastAPI), feat-018 (GitHub), feat-019 (adapters)
 feat-007 ──► feat-021 (eval/feedback)
 feat-002+010 ──► feat-022 (registry/chargeback)
+feat-002+007+008 ──► feat-023 (audit trail)
+feat-002+010 ──► feat-024 (identity) ──► feat-023, feat-025  [principal attribution]
+feat-008+020 ──► feat-025 (policy/decisions) ──► feat-023  [decisions → audit]
+feat-005+006+020+022 ──► feat-026 (cost metrics + pre-call projection)
+feat-004+011 ──► feat-027 (semconv pin/conformance)
 ```
 
 Implement lowest-numbered `proposed` feature whose dependencies are all `shipped`.
