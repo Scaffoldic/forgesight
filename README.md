@@ -23,7 +23,7 @@ with telemetry.agent_run("pr-reviewer", version="2.1.0", metadata={"team": "plat
 ```
 
 Cost, token usage, trace nesting, metrics, and multi-backend fan-out come for free.
-Swap `otlp` → `langfuse`, `datadog`, `clickhouse`, `prometheus` — the agent code never moves.
+Swap `otel` → `langfuse`, `datadog`, `clickhouse`, `prometheus` — the agent code never moves.
 
 ---
 
@@ -72,6 +72,34 @@ ForgeSight makes telemetry **infrastructure**, not glue:
 
 It tracks: agent runs · workflows · steps · LLM calls (tokens/cost/latency) · tool calls ·
 MCP calls · metrics · traces · cost · lifecycle events + arbitrary business metadata.
+
+---
+
+## What you'll see
+
+Wrap a run (the example above) and ForgeSight emits **one trace**, nested by construction,
+named on the OTel GenAI semantic conventions:
+
+```text
+invoke_agent pr-reviewer                       run · 1.24s · ok · {team: platform}
+├─ chat claude-sonnet-4-5                       in=1,240 out=340 tok · $0.0123 · 812ms
+└─ execute_tool github_get_diff                 47ms
+```
+
+Same data, different home — *where* you see it is whichever backend you selected:
+
+| Backend | What shows up |
+|---|---|
+| **Traces** — Jaeger, Tempo, Honeycomb, Phoenix, … | the click-through span tree above |
+| **Datadog** | APM spans + a `forgesight.cost_usd` metric + token counts |
+| **Langfuse** | observations with model, tokens, and cost |
+| **ClickHouse** | one row per record → `SELECT sum(cost_usd) … GROUP BY team` |
+| **Prometheus** | `agentforge_*` counters at `/metrics` |
+
+**See it for real in 60 seconds:** `docker compose up -d jaeger`, point `exporters=["otel"]`
+at it, run your agent, open <http://localhost:16686>. The validated
+[`examples/agentforge-agent/`](./examples/agentforge-agent/) prints
+`✅ trace found in Jaeger — 6 spans` against a live OTLP backend.
 
 ---
 
@@ -132,11 +160,26 @@ Configuration layers **file → env → kwargs** (last wins), so the same code r
 ```yaml
 # forgesight.yaml
 service_name: my-agent
-exporters: [otlp, langfuse]
+exporters: [otel, langfuse]
 exporter_config:
   otel:     { endpoint: "${OTEL_COLLECTOR}" }
   langfuse: { public_key: "${LANGFUSE_PUBLIC_KEY}", secret_key: "${LANGFUSE_SECRET_KEY}" }
 ```
+
+### The 5-step setup
+
+1. **Install** a backend extra — `pip install "forgesight[otel]"` *(enables it)*.
+2. **Configure once** at startup — `configure(exporters=["otel"], …)` *(selects it)*.
+3. **Wrap your work** — `telemetry.agent_run(...)`, `@instrument`, or a framework adapter.
+4. **Record usage** on LLM calls — `call.record_usage(input=…, output=…)` so cost is derived.
+5. **Flush before exit** — so the async worker doesn't lose buffered telemetry.
+
+> ⚠️ **Flush-on-exit is the #1 gotcha.** Export is asynchronous and non-blocking, so a
+> process that exits immediately can drop in-flight telemetry. Long-lived services flush via
+> their integration (FastAPI's `sdk_lifespan`); short-lived scripts/CLIs/serverless must call
+> `forgesight.get_runtime().shutdown()`. In tests, set `sync_export=True` to skip the worker
+> entirely. *(Reachability matters too — point the exporter at a backend that's actually up;
+> if it's down, telemetry is dropped and counted, never raised.)*
 
 ---
 
