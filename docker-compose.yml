@@ -1,0 +1,53 @@
+# ForgeSight — local observability stack for development.
+#
+# Brings up the backends the local-friendly exporters target, so you can run an
+# instrumented agent and actually SEE the telemetry. Start only what you need:
+#
+#   docker compose up -d jaeger        # OTLP traces  -> forgesight[otel]
+#   docker compose up -d prometheus    # metrics      -> forgesight[prometheus]
+#   docker compose up -d clickhouse    # analytics    -> forgesight[clickhouse]
+#   docker compose up -d               # the whole stack
+#
+# Full walkthrough: docs/playbooks/03-run-locally-with-docker.md
+
+services:
+  # OTLP traces -> Jaeger all-in-one.  UI: http://localhost:16686
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: forgesight-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    restart: unless-stopped
+
+  # Scrapes the agent's Prometheus exporter (default :9464).  UI: http://localhost:9090
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: forgesight-prometheus
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets Prometheus scrape the host
+    restart: unless-stopped
+
+  # Columnar store for the ClickHouse exporter.  HTTP :8123, native :9000
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: forgesight-clickhouse
+    environment:
+      CLICKHOUSE_DB: forgesight
+      CLICKHOUSE_USER: forgesight
+      CLICKHOUSE_PASSWORD: forgesight
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
