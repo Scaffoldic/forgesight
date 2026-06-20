@@ -36,6 +36,12 @@ sqlite = "forgesight_audit.sinks.sqlite:SqliteAuditSink"
 otel   = "forgesight_audit.sinks.otel:OtelAuditSink"
 siem   = "forgesight_audit.sinks.siem:SiemAuditSink"
 
+[project.urls]
+Homepage = "https://github.com/Scaffoldic/forgesight"
+Repository = "https://github.com/Scaffoldic/forgesight"
+Issues = "https://github.com/Scaffoldic/forgesight/issues"
+Changelog = "https://github.com/Scaffoldic/forgesight/blob/main/docs/releases/v0.1.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

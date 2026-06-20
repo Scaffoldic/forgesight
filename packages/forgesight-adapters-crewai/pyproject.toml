@@ -29,6 +29,12 @@ crewai = ["crewai>=0.80"]
 [project.entry-points."forgesight.adapters"]
 crewai = "forgesight_adapters_crewai:CrewAIAdapter"
 
+[project.urls]
+Homepage = "https://github.com/Scaffoldic/forgesight"
+Repository = "https://github.com/Scaffoldic/forgesight"
+Issues = "https://github.com/Scaffoldic/forgesight/issues"
+Changelog = "https://github.com/Scaffoldic/forgesight/blob/main/docs/releases/v0.1.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
