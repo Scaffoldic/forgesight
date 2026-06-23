@@ -2,10 +2,10 @@
 
 ```python
 from fastapi import FastAPI
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 
 app = FastAPI(lifespan=sdk_lifespan)
-app.add_middleware(AgentForgeMiddleware)
+app.add_middleware(ForgeSightMiddleware)
 ```
 """
 
@@ -13,14 +13,14 @@ from __future__ import annotations
 
 from ._config import DEFAULT_EXCLUDE_PATHS, SPAN_KINDS, install
 from .lifespan import sdk_lifespan
-from .middleware import AgentForgeMiddleware, HTTPServerError
+from .middleware import ForgeSightMiddleware, HTTPServerError
 
 __version__ = "0.1.0"
 
 __all__ = [
     "DEFAULT_EXCLUDE_PATHS",
     "SPAN_KINDS",
-    "AgentForgeMiddleware",
+    "ForgeSightMiddleware",
     "HTTPServerError",
     "__version__",
     "install",

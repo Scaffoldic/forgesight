@@ -57,7 +57,7 @@ the OTLP path and skip this package entirely.
 |---|---|---|
 | `api_key` | `DD_API_KEY` / `FORGESIGHT_DATADOG_API_KEY` | — (required for direct intake) |
 | `site` | `DD_SITE` / `FORGESIGHT_DATADOG_SITE` | `datadoghq.com` |
-| `service` | `DD_SERVICE` / `FORGESIGHT_DATADOG_SERVICE` | `agentforge` |
+| `service` | `DD_SERVICE` / `FORGESIGHT_DATADOG_SERVICE` | `forgesight` |
 | `env` | `DD_ENV` / `FORGESIGHT_DATADOG_ENV` | — |
 | `version` | `DD_VERSION` / `FORGESIGHT_DATADOG_VERSION` | — |
 | `agent_endpoint` | `FORGESIGHT_DATADOG_AGENT_ENDPOINT` | — |

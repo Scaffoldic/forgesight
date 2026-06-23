@@ -13,7 +13,7 @@ pip install "forgesight[fastapi,otel]"     # the integration + a backend to ship
 
 ```python
 from fastapi import FastAPI
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 import forgesight
 
 forgesight.configure(
@@ -23,12 +23,12 @@ forgesight.configure(
 )
 
 app = FastAPI(lifespan=sdk_lifespan)        # flush-on-shutdown
-app.add_middleware(AgentForgeMiddleware)    # request <-> run correlation
+app.add_middleware(ForgeSightMiddleware)    # request <-> run correlation
 ```
 
 - `sdk_lifespan` calls `force_flush()` + `shutdown()` on app shutdown (bounded by
   `export_timeout_millis`), so a rolling deploy never drops in-flight telemetry.
-- `AgentForgeMiddleware` is pure ASGI: it opens/links a run per request and attaches
+- `ForgeSightMiddleware` is pure ASGI: it opens/links a run per request and attaches
   `http.route`, `http.method`, `http.target`, `http.status_code`. 5xx responses are recorded
   as an `HTTPServerError`.
 
@@ -51,7 +51,7 @@ async def review(pr: PRRequest):
 Health checks and docs are excluded by default (`DEFAULT_EXCLUDE_PATHS`). Override:
 
 ```python
-app.add_middleware(AgentForgeMiddleware, exclude_paths=["/healthz", "/metrics", "/internal"])
+app.add_middleware(ForgeSightMiddleware, exclude_paths=["/healthz", "/metrics", "/internal"])
 ```
 
 ## Run & verify
@@ -67,7 +67,7 @@ Open http://localhost:16686, service `agent-api` → you'll see a request-scoped
 
 ## Notes
 
-- Trace context propagates in via the `x-agentforge-run-id` header (configurable), so an
+- Trace context propagates in via the `x-forgesight-run-id` header (configurable), so an
   upstream caller's run id can thread through.
 - Export is non-blocking — a backend outage never delays a response or breaks a request.
 

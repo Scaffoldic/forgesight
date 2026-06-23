@@ -43,7 +43,7 @@ nothing extra.
 
 - **What shipping it as the SDK makes possible:** every consuming agent emits the
   *same* instruments, with the *same* names, units, buckets, and attributes. A platform
-  team writes one Grafana panel — `sum(rate(agentforge_agent_runs_total[5m]))`,
+  team writes one Grafana panel — `sum(rate(forgesight_agent_runs_total[5m]))`,
   `histogram_quantile(0.99, gen_ai_client_operation_duration_bucket)` — and it works for
   every agent in the org. Hand-rolled metrics make that impossible: each agent's `p99`
   query needs bespoke knowledge of that agent's bucket choices.
@@ -70,10 +70,10 @@ nothing extra.
   100+ lines, and wrong on the buckets.
   **After:** they write *nothing*. The runtime already records runs/calls (feat-002);
   feat-005 derives all metrics from those records. Turn on the metric reader via config.
-- **Day-1 fleet dashboard.** `agentforge_agent_runs_total`,
-  `agentforge_agent_failures_total`, `agentforge_agent_cost_total`,
-  `agentforge_agent_duration_ms`, `agentforge_tool_invocations_total`,
-  `agentforge_mcp_invocations_total` — every one tagged with agent name/version so a
+- **Day-1 fleet dashboard.** `forgesight_agent_runs_total`,
+  `forgesight_agent_failures_total`, `forgesight_agent_cost_total`,
+  `forgesight_agent_duration_ms`, `forgesight_tool_invocations_total`,
+  `forgesight_mcp_invocations_total` — every one tagged with agent name/version so a
   platform team slices by agent with zero per-agent setup.
 - **Conformant GenAI latency/token panels for free.** `gen_ai.client.token.usage`
   (filtered by `gen_ai.token.type`), `gen_ai.client.operation.duration`,
@@ -166,7 +166,7 @@ class MetricConfig:                                    # stable
 
 > Identifier note: the FR-6 names (`agent_runs_total`, …) map onto these dotted OTel
 > names; Prometheus rendering flattens dots to underscores
-> (`agentforge_agent_runs_total`). The dotted form is canonical (P4).
+> (`forgesight_agent_runs_total`). The dotted form is canonical (P4).
 
 **OTel GenAI histograms — namespace `gen_ai.*` (the spec; exact units + buckets from
 [`../design/otel-semantic-conventions.md`](../design/otel-semantic-conventions.md) §4.4):**

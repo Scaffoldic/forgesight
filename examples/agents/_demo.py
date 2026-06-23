@@ -25,7 +25,7 @@ from forgesight_governance import BudgetCap, BudgetInterceptor, BudgetScope
 MODEL = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 REGION = "us-east-1"
 TEAM = "platform"
-OWNER = "engg.kjoshi@gmail.com"
+OWNER = "owner@example.com"
 
 # Bedrock Claude Haiku 4.5 list price (USD / token).
 PRICE_IN = 1.0 / 1_000_000

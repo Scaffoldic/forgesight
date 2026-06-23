@@ -3,8 +3,8 @@
 -- One denormalized, immutable, MergeTree table: a Record is written once and never
 -- updated, so trace-level business metadata is denormalized onto every row (no join
 -- table, so analytical queries never pay a join). `${TABLE}` is substituted by the
--- exporter with the configured table name (default `agentforge_records`).
-CREATE TABLE IF NOT EXISTS agentforge_records (
+-- exporter with the configured table name (default `forgesight_records`).
+CREATE TABLE IF NOT EXISTS forgesight_records (
     run_id           String,                       -- ULID
     trace_id         String,                       -- W3C trace id
     parent_run_id    Nullable(String),

@@ -74,7 +74,7 @@ forgesight.configure(
 
 The bundled [`docker/prometheus.yml`](../../docker/prometheus.yml) scrapes
 `host.docker.internal:9464` every 5s. Keep your agent process running, then open
-http://localhost:9090 and query e.g. `agentforge_agent_runs_total`. See the
+http://localhost:9090 and query e.g. `forgesight_agent_runs_total`. See the
 [Prometheus runbook](../runbooks/exporter-prometheus.md) for the full metric list.
 
 ## C. Analytics in ClickHouse
@@ -99,7 +99,7 @@ forgesight.configure(
 ```bash
 docker exec -it forgesight-clickhouse clickhouse-client \
   --user forgesight --password forgesight \
-  --query "SELECT count() FROM forgesight.agentforge_records"
+  --query "SELECT count() FROM forgesight.forgesight_records"
 ```
 
 See the [ClickHouse runbook](../runbooks/exporter-clickhouse.md) for the schema and the

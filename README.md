@@ -73,7 +73,7 @@ ForgeSight makes telemetry **infrastructure**, not glue:
 | **ClickHouse** columnar analytics | `forgesight-clickhouse` | `exporters=["clickhouse"]` |
 | **Prometheus** `/metrics` + push | `forgesight-prometheus` | `exporters=["prometheus"]` |
 | **MCP** client/server spans + W3C propagation | `forgesight-mcp` | `instrument_mcp_client(session)` |
-| **FastAPI** request↔run correlation + flush-on-deploy | `forgesight-fastapi` | `app.add_middleware(AgentForgeMiddleware)` |
+| **FastAPI** request↔run correlation + flush-on-deploy | `forgesight-fastapi` | `app.add_middleware(ForgeSightMiddleware)` |
 | **GitHub Actions** run↔commit/PR/job + cost summary | `forgesight-github` | `bootstrap()` |
 | **LangGraph / CrewAI** auto-instrument (zero agent change) | `forgesight-adapters-*` | `LangGraphAdapter().instrument()` |
 | **Budgets, policy & kill-switch** (+ **pre-call** budget projection) | `forgesight-governance` | `interceptors=["budget","policy","kill-switch"]` |
@@ -106,7 +106,7 @@ Same data, different home — *where* you see it is whichever backend you select
 | **Datadog** | APM spans + a `forgesight.cost_usd` metric + token counts |
 | **Langfuse** | observations with model, tokens, and cost |
 | **ClickHouse** | one row per record → `SELECT sum(cost_usd) … GROUP BY team` |
-| **Prometheus** | `agentforge_*` counters at `/metrics` |
+| **Prometheus** | `forgesight_*` counters at `/metrics` |
 
 **See it for real in 60 seconds:** `docker compose up -d jaeger`, point `exporters=["otel"]`
 at it, run your agent, open <http://localhost:16686>. The validated

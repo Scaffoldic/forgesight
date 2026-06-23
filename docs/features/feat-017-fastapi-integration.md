@@ -74,7 +74,7 @@ core.
   lines), manually generates a correlation id, threads it into the agent call,
   remembers to `force_flush()` in a shutdown handler (or doesn't), and writes
   bespoke `traceparent` extraction. **After:** three lines —
-  `app.add_middleware(AgentForgeMiddleware)` and pass the SDK lifespan — and
+  `app.add_middleware(ForgeSightMiddleware)` and pass the SDK lifespan — and
   every request opens a correctly-correlated run span, continues the incoming
   trace, and flushes cleanly on shutdown.
 - **Request↔run link for free.** The HTTP request and the agent run share a
@@ -97,10 +97,10 @@ core.
 ```python
 # python — the entire wiring (~3 lines of integration)
 from fastapi import FastAPI
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 
 app = FastAPI(lifespan=sdk_lifespan)          # configure() on startup, flush on shutdown
-app.add_middleware(AgentForgeMiddleware)       # request → agent_run span, correlation
+app.add_middleware(ForgeSightMiddleware)       # request → agent_run span, correlation
 
 @app.post("/agents/pr-reviewer/run")
 async def run(req: ReviewRequest):
@@ -138,7 +138,7 @@ await app.register(agentForgePlugin);   // request→run span + onClose flush
 ```python
 # forgesight_fastapi/__init__.py
 
-class AgentForgeMiddleware:
+class ForgeSightMiddleware:
     """ASGI middleware: opens an agent_run (or workflow_run) span per request,
     continues an incoming W3C trace, attaches route/method metadata, sets the
     run_id response header, and closes the span with the response status.
@@ -152,7 +152,7 @@ class AgentForgeMiddleware:
         exclude_paths: "Sequence[str]" = ("/health", "/healthz", "/metrics", "/docs", "/openapi.json"),
         include_routes: "Sequence[str] | None" = None,   # None ⇒ all (minus exclude)
         capture_content: bool | None = None,             # P7: None ⇒ inherit global (off)
-        run_id_header: str = "x-agentforge-run-id",
+        run_id_header: str = "x-forgesight-run-id",
     ) -> None: ...
 
 @asynccontextmanager
@@ -175,7 +175,7 @@ export interface AgentForgeOptions {
 export const agentForgePlugin: FastifyPluginAsync<AgentForgeOptions>;
 ```
 
-Stability: `AgentForgeMiddleware` constructor kwargs and `sdk_lifespan` are the
+Stability: `ForgeSightMiddleware` constructor kwargs and `sdk_lifespan` are the
 public surface, **stable** for 0.2. New optional kwargs may be added with safe
 defaults (P5).
 
@@ -250,7 +250,7 @@ config defaults are read from `forgesight.yaml`.
 | `integrations.fastapi.include_routes` | — | all | Route templates to instrument (allow-list). Mutually exclusive with relying solely on exclude. |
 | `integrations.fastapi.exclude_paths` | `FORGESIGHT_FASTAPI_EXCLUDE` | `/health,/healthz,/metrics,/docs,/openapi.json` | Paths that get no span (health checks, docs, scrapes). |
 | `integrations.fastapi.capture_content` | `FORGESIGHT_FASTAPI_CAPTURE_CONTENT` | `false` | Capture request/response bodies. Off by default (P7). |
-| `integrations.fastapi.run_id_header` | `FORGESIGHT_FASTAPI_RUN_ID_HEADER` | `x-agentforge-run-id` | Response header carrying the run_id for correlation. |
+| `integrations.fastapi.run_id_header` | `FORGESIGHT_FASTAPI_RUN_ID_HEADER` | `x-forgesight-run-id` | Response header carrying the run_id for correlation. |
 
 Validation: `span_kind` must be `agent_run`|`workflow_run`; `exclude_paths`
 are matched as prefixes; `capture_content: true` logs INFO once.

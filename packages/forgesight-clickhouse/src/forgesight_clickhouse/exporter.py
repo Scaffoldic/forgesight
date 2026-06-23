@@ -31,7 +31,7 @@ from forgesight_api import ExportResult, Kind, Record, RunStatus
 
 _log = logging.getLogger("forgesight.clickhouse")
 
-DEFAULT_TABLE = "agentforge_records"
+DEFAULT_TABLE = "forgesight_records"
 DEFAULT_BATCH_SIZE = 512
 DEFAULT_MAX_EXPORT_BATCH_SIZE = 512  # pipeline default (exporter-pipeline.md §4.8)
 
@@ -290,7 +290,7 @@ def _opt_str(value: object) -> str | None:
 
 
 def _load_ddl(table: str) -> str:
-    """Read the shipped DDL, retargeted at ``table`` (default ``agentforge_records``)."""
+    """Read the shipped DDL, retargeted at ``table`` (default ``forgesight_records``)."""
     sql = (files("forgesight_clickhouse") / "migrations" / "0001_init.sql").read_text(
         encoding="utf-8"
     )

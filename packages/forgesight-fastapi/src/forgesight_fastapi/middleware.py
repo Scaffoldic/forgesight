@@ -1,4 +1,4 @@
-"""``AgentForgeMiddleware`` — pure-ASGI middleware that correlates a request with an agent run.
+"""``ForgeSightMiddleware`` — pure-ASGI middleware that correlates a request with an agent run.
 
 Per request it: continues an incoming W3C trace (or starts a root), opens an
 ``agent_run`` / ``workflow_run`` span via the feat-002 runtime, binds it so the handler's
@@ -44,7 +44,7 @@ class HTTPServerError(Exception):
     """Synthesised for a 5xx response so the run span records ``error.type`` (FR-7)."""
 
 
-class AgentForgeMiddleware:
+class ForgeSightMiddleware:
     """ASGI middleware: one agent-run span per request, correlated and flushed cleanly."""
 
     def __init__(

@@ -1,6 +1,6 @@
 [project]
 name = "forgesight"
-version = "0.1.0"
+version = "0.1.1"
 description = "Vendor-neutral, OpenTelemetry-first telemetry for AI agents: traces, cost, budgets, and a tamper-evident audit trail — ship to any backend, no agent-code changes."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -39,39 +39,39 @@ dependencies = ["forgesight-core"]
 
 # Backends & integrations are separate distributions; each extra pulls one at the matching
 # coordinated version. `pip install "forgesight[otel,langfuse]"` installs the facade + those.
-# Bump the `~= 0.1.0` pins together every release train (see launch/launch-checklist.md).
+# Bump the `~= 0.1.1` pins together every release train (see launch/launch-checklist.md).
 [project.optional-dependencies]
-otel = ["forgesight-otel ~= 0.1.0"]
-prometheus = ["forgesight-prometheus ~= 0.1.0"]
-langfuse = ["forgesight-langfuse ~= 0.1.0"]
-clickhouse = ["forgesight-clickhouse ~= 0.1.0"]
-datadog = ["forgesight-datadog ~= 0.1.0"]
-mcp = ["forgesight-mcp ~= 0.1.0"]
-fastapi = ["forgesight-fastapi ~= 0.1.0"]
-github = ["forgesight-github ~= 0.1.0"]
-governance = ["forgesight-governance ~= 0.1.0"]
-eval = ["forgesight-eval ~= 0.1.0"]
-registry = ["forgesight-registry ~= 0.1.0"]
-audit = ["forgesight-audit ~= 0.1.0"]
-adapters-langgraph = ["forgesight-adapters-langgraph ~= 0.1.0"]
+otel = ["forgesight-otel ~= 0.1.1"]
+prometheus = ["forgesight-prometheus ~= 0.1.1"]
+langfuse = ["forgesight-langfuse ~= 0.1.1"]
+clickhouse = ["forgesight-clickhouse ~= 0.1.1"]
+datadog = ["forgesight-datadog ~= 0.1.1"]
+mcp = ["forgesight-mcp ~= 0.1.1"]
+fastapi = ["forgesight-fastapi ~= 0.1.1"]
+github = ["forgesight-github ~= 0.1.1"]
+governance = ["forgesight-governance ~= 0.1.1"]
+eval = ["forgesight-eval ~= 0.1.1"]
+registry = ["forgesight-registry ~= 0.1.1"]
+audit = ["forgesight-audit ~= 0.1.1"]
+adapters-langgraph = ["forgesight-adapters-langgraph ~= 0.1.1"]
 # crewai keeps its heavy framework behind an optional extra on the adapter — chain it so the
 # framework is actually installed (otherwise the wrapper imports but the first call fails).
-adapters-crewai = ["forgesight-adapters-crewai[crewai] ~= 0.1.0"]
+adapters-crewai = ["forgesight-adapters-crewai[crewai] ~= 0.1.1"]
 # Everything except the heavy CrewAI tree (opt into that explicitly with [adapters-crewai]).
 all = [
-    "forgesight-otel ~= 0.1.0",
-    "forgesight-prometheus ~= 0.1.0",
-    "forgesight-langfuse ~= 0.1.0",
-    "forgesight-clickhouse ~= 0.1.0",
-    "forgesight-datadog ~= 0.1.0",
-    "forgesight-mcp ~= 0.1.0",
-    "forgesight-fastapi ~= 0.1.0",
-    "forgesight-github ~= 0.1.0",
-    "forgesight-governance ~= 0.1.0",
-    "forgesight-eval ~= 0.1.0",
-    "forgesight-registry ~= 0.1.0",
-    "forgesight-audit ~= 0.1.0",
-    "forgesight-adapters-langgraph ~= 0.1.0",
+    "forgesight-otel ~= 0.1.1",
+    "forgesight-prometheus ~= 0.1.1",
+    "forgesight-langfuse ~= 0.1.1",
+    "forgesight-clickhouse ~= 0.1.1",
+    "forgesight-datadog ~= 0.1.1",
+    "forgesight-mcp ~= 0.1.1",
+    "forgesight-fastapi ~= 0.1.1",
+    "forgesight-github ~= 0.1.1",
+    "forgesight-governance ~= 0.1.1",
+    "forgesight-eval ~= 0.1.1",
+    "forgesight-registry ~= 0.1.1",
+    "forgesight-audit ~= 0.1.1",
+    "forgesight-adapters-langgraph ~= 0.1.1",
 ]
 
 [project.urls]

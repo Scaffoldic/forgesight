@@ -4,7 +4,7 @@
 
 ## What it does
 
-Adds pure-ASGI middleware (`AgentForgeMiddleware`) that, per request, continues an incoming W3C
+Adds pure-ASGI middleware (`ForgeSightMiddleware`) that, per request, continues an incoming W3C
 trace (or starts a root), opens an `agent_run` (or `workflow_run`) span via the runtime, binds it
 so the handler's LLM/tool/MCP calls nest under it, attaches `http.route` / `http.method` / status
 as business metadata, and sets a `run_id` response header for correlation. A companion lifespan
@@ -32,17 +32,17 @@ Wire the lifespan and the middleware:
 
 ```python
 from fastapi import FastAPI
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 
 app = FastAPI(lifespan=sdk_lifespan)      # configure() on startup; force_flush()+shutdown() on stop
-app.add_middleware(AgentForgeMiddleware)  # one agent_run span per request
+app.add_middleware(ForgeSightMiddleware)  # one agent_run span per request
 ```
 
 Tuning the middleware:
 
 ```python
 app.add_middleware(
-    AgentForgeMiddleware,
+    ForgeSightMiddleware,
     span_kind="workflow_run",                 # one of SPAN_KINDS = ("agent_run", "workflow_run")
     agent_name="pr-reviewer",                 # str or callable(Request) -> str
     exclude_paths=["/health", "/metrics"],    # defaults to DEFAULT_EXCLUDE_PATHS (below)
@@ -85,7 +85,7 @@ missing/malformed header degrades to a new local root, never raises.
   like `/agents/{id}/run`, reconstructed from `path_params` to keep cardinality bounded), and
   `http.status_code`.
 - **Request↔run correlation:** the `run_id` is written to the response header
-  (default `x-agentforge-run-id`, the `DEFAULT_RUN_ID_HEADER`) so a caller can join its request to
+  (default `x-forgesight-run-id`, the `DEFAULT_RUN_ID_HEADER`) so a caller can join its request to
   the run.
 - **Errors:** a 5xx response synthesises `HTTPServerError` → span `ERROR` with `error.type`; 4xx is
   recorded; an unhandled exception is recorded as ERROR and re-raised (the response path is never
@@ -102,7 +102,7 @@ Verify:
 
 1. Run the app with an OTLP exporter (`forgesight[otel]`) pointed at the Jaeger all-in-one in the
    root [`docker-compose.yml`](../../docker-compose.yml) (OTLP gRPC `:4317`, UI `:16686`).
-2. `curl -i http://localhost:8000/your-endpoint` and confirm the `x-agentforge-run-id` response
+2. `curl -i http://localhost:8000/your-endpoint` and confirm the `x-forgesight-run-id` response
    header is present.
 3. In Jaeger (http://localhost:16686) find the request's span and check `http.route`,
    `http.method`, and `http.status_code` are set; confirm `/health` and `/metrics` produced no

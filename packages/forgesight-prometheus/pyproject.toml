@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-prometheus"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight Prometheus exporter — pull /metrics + push-gateway for agent telemetry."
 readme = "README.md"
 requires-python = ">=3.11"

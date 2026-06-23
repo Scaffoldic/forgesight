@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-clickhouse"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight ClickHouse exporter — columnar batch insert of immutable records into a denormalized MergeTree."
 readme = "README.md"
 requires-python = ">=3.11"

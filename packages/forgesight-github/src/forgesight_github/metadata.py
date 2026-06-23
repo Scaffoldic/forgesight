@@ -2,7 +2,7 @@
 
 Pure: reads the runner environment and parses the PR number from the event payload JSON
 (the one field that is not a plain env var). Maps onto the current ``vcs.*`` / ``cicd.*``
-semconv, with ``agentforge.*`` extensions where no convention exists yet. Absent fields are
+semconv, with ``forgesight.github.*`` extensions where no convention exists yet. Absent fields are
 omitted, never fabricated.
 """
 

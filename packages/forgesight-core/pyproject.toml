@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight runtime — context propagation, instrumentation scopes, dispatch, default exporters."
 readme = "README.md"
 requires-python = ">=3.11"

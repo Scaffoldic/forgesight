@@ -45,7 +45,7 @@ instrument_mcp_server(server)               # extracts traceparent, opens child 
 - **Traces stitch automatically.** The client injects `traceparent` into the request `_meta`;
   the server extracts it and opens its span as a child of the caller's — same `trace_id`.
 - **Metrics for free.** Each call feeds `mcp.client.operation.duration` and the derived
-  `agentforge.mcp.invocations_total` (server / method / tool / status).
+  `forgesight.mcp.invocations_total` (server / method / tool / status).
 - **Secure by default (P7).** `tools/call` arguments and results are captured **only** when
   `capture_content` resolves true; the redaction interceptor still runs.
 
