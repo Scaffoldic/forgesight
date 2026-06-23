@@ -1,0 +1,137 @@
+name: Release
+
+# Build and publish all 17 ForgeSight workspace packages to PyPI.
+# Triggered when a vX.Y.Z tag is pushed (e.g. `gh release create v0.1.2`).
+#
+# Auth: PyPI Trusted Publishing (OIDC) via `id-token: write` on the
+# publish job — no long-lived API token / password.
+#
+# ONE-TIME SETUP (required before the first OIDC release):
+#   1. Create a GitHub Environment named `pypi`
+#      (Settings → Environments → New environment → "pypi").
+#      Add required reviewers to gate each release on a manual
+#      "Approve" click before the upload runs.
+#   2. For EACH of the 17 PyPI projects, add a Trusted Publisher
+#      (pypi.org → project → Manage → Publishing → Add):
+#        Owner:        Scaffoldic
+#        Repository:   forgesight
+#        Workflow:     release.yml
+#        Environment:  pypi
+#      Projects: forgesight, forgesight-api, forgesight-core,
+#      forgesight-otel, forgesight-prometheus, forgesight-langfuse,
+#      forgesight-clickhouse, forgesight-datadog, forgesight-mcp,
+#      forgesight-fastapi, forgesight-github, forgesight-governance,
+#      forgesight-eval, forgesight-registry, forgesight-audit,
+#      forgesight-adapters-langgraph, forgesight-adapters-crewai.
+#   3. Once OIDC works, the manual `twine upload` + PYPI_TOKEN flow
+#      (launch/launch-checklist.md) is no longer needed for releases.
+
+on:
+  push:
+    tags: ["v*"]
+  # Manual re-run for a failed publish on the same ref (no new tag).
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build from (defaults to current branch)"
+        required: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build wheels + sdists (all 17)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Build every workspace member
+        run: uv build --all-packages --out-dir dist/
+      - name: List built artefacts
+        run: ls -la dist/
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  packaged-smoke:
+    name: Packaged-wheel smoke gate
+    needs: [build]
+    runs-on: ubuntu-latest
+    # Install the freshly-built wheels into a clean venv (third-party
+    # deps from PyPI, ForgeSight packages from dist/) and assert the
+    # public API + rebranded defaults import correctly. Catches
+    # packaging bugs — missing modules, bad entry points, stray brand
+    # — BEFORE the publish job can run.
+    steps:
+      - name: Download build artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install built wheels + smoke-test the public API
+        run: |
+          python -m venv venv
+          ./venv/bin/pip install --upgrade pip
+          ./venv/bin/pip install --find-links dist/ "forgesight[all]"
+          ./venv/bin/python - <<'PY'
+          from importlib.metadata import version
+          import forgesight, forgesight_prometheus, forgesight_datadog, forgesight_clickhouse
+          import forgesight_fastapi, forgesight_mcp, forgesight_github, forgesight_governance
+          # public API rename holds, old brand gone
+          from forgesight_fastapi import ForgeSightMiddleware
+          assert not hasattr(forgesight_fastapi, "AgentForgeMiddleware")
+          # rebranded defaults
+          import inspect
+          assert inspect.signature(forgesight_prometheus.PrometheusExporter.__init__).parameters["prefix"].default == "forgesight"
+          assert forgesight_datadog.exporter.DEFAULT_SERVICE == "forgesight"
+          assert forgesight_clickhouse.exporter.DEFAULT_TABLE == "forgesight_records"
+          print("packaged smoke OK — forgesight", version("forgesight"))
+          PY
+
+  publish:
+    name: Publish to PyPI (OIDC)
+    needs: [build, packaged-smoke]
+    runs-on: ubuntu-latest
+    # The `pypi` environment gates this job on a manual approve click
+    # (Settings → Environments → pypi → required reviewers).
+    environment:
+      name: pypi
+      url: https://pypi.org/project/forgesight/
+    permissions:
+      # Required for PyPI Trusted Publishing (OIDC token exchange).
+      id-token: write
+      contents: read
+    steps:
+      - name: Download build artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          # Re-running on a partial-failure tag won't 400 on the
+          # packages that already uploaded.
+          skip-existing: true
+          # Trusted Publishing: no `password:` — auth is the
+          # `id-token: write` permission on this job.
