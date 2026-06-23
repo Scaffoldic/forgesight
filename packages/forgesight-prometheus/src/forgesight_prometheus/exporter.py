@@ -44,7 +44,7 @@ class PrometheusExporter:
         *,
         host: str = "0.0.0.0",
         port: int = 9464,
-        prefix: str = "agentforge",
+        prefix: str = "forgesight",
         push_gateway: str | None = None,
         push_job: str = "forgesight",
         registry: CollectorRegistry | None = None,

@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight MCP instrumentation — client + server spans, mcp.* conventions, W3C propagation."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-otel"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight OpenTelemetry exporter — maps records to OTLP spans via the GenAI semantic conventions."
 readme = "README.md"
 requires-python = ">=3.11"

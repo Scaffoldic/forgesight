@@ -78,7 +78,7 @@ exactly one vendor SDK (P1).
   shipped DDL (or let the exporter create the table). Every run, step, LLM/tool/MCP
   call lands as a row in a denormalised MergeTree, batched, queryable in SQL.
 - **Queries that were impossible become one statement:** `SELECT team,
-  sum(cost_usd) FROM agentforge_records WHERE kind='llm' AND ts >= now() -
+  sum(cost_usd) FROM forgesight_records WHERE kind='llm' AND ts >= now() -
   INTERVAL 30 DAY GROUP BY team` — because `team` (business metadata) is
   denormalised onto every row.
 - **Swapping/adding is config.** Run ClickHouse for analytics *and* Langfuse for
@@ -104,7 +104,7 @@ forgesight.configure()      # resolves "clickhouse" from the exporters list
 from forgesight_clickhouse import ClickHouseExporter
 forgesight.configure(exporters=[
     ClickHouseExporter(dsn="clickhouse://user:pass@ch-host:8443/agents?secure=true",
-                       table="agentforge_records"),
+                       table="forgesight_records"),
 ])
 ```
 
@@ -114,7 +114,7 @@ exporters:
   - name: clickhouse
     config:
       dsn: "${FORGESIGHT_CLICKHOUSE_DSN}"   # clickhouse://user:pass@host:8443/db
-      table: "agentforge_records"
+      table: "forgesight_records"
       batch_size: 512                            # aligns with the pipeline
       async_insert: true
 ```
@@ -123,7 +123,7 @@ exporters:
 // typescript
 import { configure } from '@agentforge/sdk';
 import { ClickHouseExporter } from '@agentforge/sdk-clickhouse';
-configure({ exporters: [new ClickHouseExporter({ dsn: process.env.FORGESIGHT_CLICKHOUSE_DSN!, table: 'agentforge_records' })] });
+configure({ exporters: [new ClickHouseExporter({ dsn: process.env.FORGESIGHT_CLICKHOUSE_DSN!, table: 'forgesight_records' })] });
 ```
 
 ### 4.2 Public API / contract
@@ -145,7 +145,7 @@ class ClickHouseExporter(TelemetryExporter):
         self,
         *,
         dsn: str,
-        table: str = "agentforge_records",
+        table: str = "forgesight_records",
         batch_size: int = 512,            # ≤ pipeline max_export_batch_size
         async_insert: bool = True,        # ClickHouse async_insert setting
         wait_for_async_insert: bool = False,
@@ -176,7 +176,7 @@ analytical queries never pay a join.
 records (batch from the pipeline worker)
    │  one INSERT per batch (columnar), async_insert on
    ▼
-ClickHouse  ──  table: agentforge_records  (MergeTree)
+ClickHouse  ──  table: forgesight_records  (MergeTree)
    PARTITION BY toYYYYMM(start_time)
    ORDER BY (trace_id, start_time, run_id)        -- locality for trace-tree scans
    TTL start_time + INTERVAL <retention> DELETE   -- optional, configurable
@@ -185,7 +185,7 @@ ClickHouse  ──  table: agentforge_records  (MergeTree)
 **Schema (shipped DDL).** One row per record (run / step / LLM / tool / MCP call):
 
 ```sql
-CREATE TABLE IF NOT EXISTS agentforge_records (
+CREATE TABLE IF NOT EXISTS forgesight_records (
     run_id           String,                       -- ULID
     trace_id         String,                       -- W3C trace id
     parent_run_id    Nullable(String),
@@ -270,7 +270,7 @@ Named + defaulted (P8).
 | Key | Env | Default | Validation |
 |---|---|---|---|
 | `dsn` | `FORGESIGHT_CLICKHOUSE_DSN` | — (required) | `clickhouse://…` URL; secret never logged |
-| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `agentforge_records` | valid ClickHouse identifier |
+| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `forgesight_records` | valid ClickHouse identifier |
 | `batch_size` | `FORGESIGHT_CLICKHOUSE_BATCH_SIZE` | `512` | 1 ≤ n ≤ pipeline `max_export_batch_size` |
 | `async_insert` | `FORGESIGHT_CLICKHOUSE_ASYNC_INSERT` | `true` | bool → ClickHouse `async_insert` |
 | `wait_for_async_insert` | `FORGESIGHT_CLICKHOUSE_WAIT_ASYNC` | `false` | bool |

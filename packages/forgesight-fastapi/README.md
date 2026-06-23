@@ -10,10 +10,10 @@ pip install forgesight-fastapi
 
 ```python
 from fastapi import FastAPI
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 
 app = FastAPI(lifespan=sdk_lifespan)        # configure() on startup, flush on shutdown
-app.add_middleware(AgentForgeMiddleware)     # request → agent_run span, correlation
+app.add_middleware(ForgeSightMiddleware)     # request → agent_run span, correlation
 
 @app.post("/agents/pr-reviewer/run")
 async def run(req: ReviewRequest):
@@ -41,7 +41,7 @@ app = FastAPI(lifespan=lifespan)
 ## What you get
 
 - **Request↔run link.** The HTTP request and the agent run share a `trace_id`; the response
-  carries the `run_id` (header `x-agentforge-run-id`), so "request X was slow" jumps straight
+  carries the `run_id` (header `x-forgesight-run-id`), so "request X was slow" jumps straight
   to the run's span tree and cost.
 - **Distributed traces just work.** An upstream `traceparent` is continued automatically —
   the agent service is a child span, not a new root. No propagation code in the app.
@@ -63,7 +63,7 @@ Request/response bodies are captured only when `capture_content` resolves true (
 | `span_kind` | `FORGESIGHT_FASTAPI_SPAN_KIND` | `agent_run` (or `workflow_run`) |
 | `exclude_paths` | `FORGESIGHT_FASTAPI_EXCLUDE` | `/health,/healthz,/metrics,/docs,/openapi.json` |
 | `capture_content` | `FORGESIGHT_FASTAPI_CAPTURE_CONTENT` | `false` |
-| `run_id_header` | `FORGESIGHT_FASTAPI_RUN_ID_HEADER` | `x-agentforge-run-id` |
+| `run_id_header` | `FORGESIGHT_FASTAPI_RUN_ID_HEADER` | `x-forgesight-run-id` |
 
 Constructor kwargs win over env / `forgesight.yaml` (`integrations.fastapi`).
 

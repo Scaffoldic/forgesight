@@ -39,7 +39,7 @@ from forgesight_api import ExportResult, Kind, Record, RunStatus
 
 _log = logging.getLogger("forgesight.datadog")
 
-DEFAULT_SERVICE = "agentforge"
+DEFAULT_SERVICE = "forgesight"
 DEFAULT_SITE = "datadoghq.com"
 DEFAULT_DD_AGENT_OTLP = "http://localhost:4317"
 

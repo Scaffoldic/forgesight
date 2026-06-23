@@ -16,7 +16,7 @@ from forgesight_clickhouse import ClickHouseExporter
 forgesight.configure(exporters=[
     ClickHouseExporter(
         dsn="clickhouse://user:pass@ch-host:8443/agents?secure=true",
-        table="agentforge_records",
+        table="forgesight_records",
         create_table=True,   # dev convenience; production runs the shipped migration
     ),
 ])
@@ -32,10 +32,10 @@ queries never pay a join:
 
 ```sql
 SELECT agent_name, quantile(0.99)(duration_ms)
-FROM agentforge_records WHERE kind = 'llm' GROUP BY agent_name;
+FROM forgesight_records WHERE kind = 'llm' GROUP BY agent_name;
 
 SELECT metadata.team, sum(cost_usd)
-FROM agentforge_records
+FROM forgesight_records
 WHERE kind = 'llm' AND start_time >= now() - INTERVAL 30 DAY
 GROUP BY metadata.team;
 ```
@@ -56,7 +56,7 @@ old queries keep working.
 | Key | Env | Default |
 |---|---|---|
 | `dsn` | `FORGESIGHT_CLICKHOUSE_DSN` | — (required) |
-| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `agentforge_records` |
+| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `forgesight_records` |
 | `batch_size` | `FORGESIGHT_CLICKHOUSE_BATCH_SIZE` | `512` (clamped to the pipeline max) |
 | `async_insert` | `FORGESIGHT_CLICKHOUSE_ASYNC_INSERT` | `true` |
 | `wait_for_async_insert` | `FORGESIGHT_CLICKHOUSE_WAIT_ASYNC` | `false` |

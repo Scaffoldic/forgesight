@@ -13,7 +13,7 @@ from starlette.testclient import TestClient
 
 from forgesight_api import Kind, RunStatus
 from forgesight_core import InMemoryExporter, configure, get_runtime, reset_runtime, telemetry
-from forgesight_fastapi import AgentForgeMiddleware, sdk_lifespan
+from forgesight_fastapi import ForgeSightMiddleware, sdk_lifespan
 from forgesight_fastapi._config import install
 
 TRACE = "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -61,7 +61,7 @@ def _build_app(sink: InMemoryExporter, **mw: object) -> Starlette:
             Route("/health", health, methods=["GET"]),
         ]
     )
-    app.add_middleware(AgentForgeMiddleware, **mw)
+    app.add_middleware(ForgeSightMiddleware, **mw)
     return app
 
 
@@ -70,7 +70,7 @@ def test_request_opens_run_span_with_route_template(sink: InMemoryExporter) -> N
     client = TestClient(_build_app(sink))
     response = client.post("/agents/pr-reviewer/run")
     assert response.status_code == 200
-    assert response.headers["x-agentforge-run-id"]  # run_id correlation header
+    assert response.headers["x-forgesight-run-id"]  # run_id correlation header
 
     runs = [r for r in sink.records if r.kind is Kind.AGENT]
     assert len(runs) == 1
@@ -80,7 +80,7 @@ def test_request_opens_run_span_with_route_template(sink: InMemoryExporter) -> N
     assert run.attributes["http.status_code"] == 200
     assert run.status is RunStatus.OK
     # the header run_id matches the run record
-    assert response.headers["x-agentforge-run-id"] == run.run_id
+    assert response.headers["x-forgesight-run-id"] == run.run_id
 
 
 def test_child_calls_nest_under_request_run(sink: InMemoryExporter) -> None:
@@ -213,7 +213,7 @@ def test_lifespan_configures_and_flushes() -> None:
         return sdk_lifespan(app, exporters=[exporter], sync_export=False)
 
     app = Starlette(routes=[Route("/agents/x/run", handler, methods=["POST"])], lifespan=lifespan)
-    app.add_middleware(AgentForgeMiddleware)
+    app.add_middleware(ForgeSightMiddleware)
 
     with TestClient(app) as client:  # __enter__ runs startup, __exit__ runs shutdown
         client.post("/agents/x/run")
@@ -260,7 +260,7 @@ def test_install_disabled_returns_false() -> None:
 
 def test_invalid_span_kind_rejected(sink: InMemoryExporter) -> None:
     with pytest.raises(ValueError, match="span_kind must be"):
-        AgentForgeMiddleware(_build_app(sink), span_kind="teleport")
+        ForgeSightMiddleware(_build_app(sink), span_kind="teleport")
 
 
 def test_non_http_scope_passes_through() -> None:
@@ -272,7 +272,7 @@ def test_non_http_scope_passes_through() -> None:
         async def app(scope, receive, send):  # type: ignore[no-untyped-def]
             seen["type"] = scope["type"]
 
-        mw = AgentForgeMiddleware(app)
+        mw = ForgeSightMiddleware(app)
 
         async def run() -> None:
             await mw({"type": "lifespan"}, _noop_receive, _noop_send)

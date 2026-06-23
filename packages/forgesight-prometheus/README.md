@@ -12,7 +12,7 @@ pip install forgesight-prometheus
 import forgesight
 from forgesight_prometheus import PrometheusExporter
 
-forgesight.configure(exporters=[PrometheusExporter(port=9464, prefix="agentforge")])
+forgesight.configure(exporters=[PrometheusExporter(port=9464, prefix="forgesight")])
 # Prometheus scrapes http://<host>:9464/metrics
 ```
 

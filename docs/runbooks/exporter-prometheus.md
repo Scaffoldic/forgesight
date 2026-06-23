@@ -81,20 +81,20 @@ exporter_config:
 
 ## What it emits
 
-All series are prefixed with `prefix` (default `agentforge_`). Counters and histograms folded from records:
+All series are prefixed with `prefix` (default `forgesight_`). Counters and histograms folded from records:
 
 | Metric | Type | Labels |
 | --- | --- | --- |
-| `agentforge_agent_runs` | Counter | `agent_name`, `status` |
-| `agentforge_agent_failures` | Counter | `agent_name`, `error_type` |
-| `agentforge_agent_cost_usd` | Counter | `gen_ai_provider_name` |
-| `agentforge_agent_duration_milliseconds` | Histogram | `agent_name`, `status` |
-| `agentforge_tool_invocations` | Counter | `tool_name`, `status` |
-| `agentforge_mcp_invocations` | Counter | `mcp_method_name`, `status` |
-| `agentforge_gen_ai_client_token_usage` | Histogram (`TOKEN_BUCKETS`) | `gen_ai_provider_name`, `gen_ai_operation_name`, `gen_ai_token_type` |
-| `agentforge_gen_ai_client_operation_duration_seconds` | Histogram (`DURATION_BUCKETS`) | `gen_ai_provider_name`, `gen_ai_operation_name` |
+| `forgesight_agent_runs` | Counter | `agent_name`, `status` |
+| `forgesight_agent_failures` | Counter | `agent_name`, `error_type` |
+| `forgesight_agent_cost_usd` | Counter | `gen_ai_provider_name` |
+| `forgesight_agent_duration_milliseconds` | Histogram | `agent_name`, `status` |
+| `forgesight_tool_invocations` | Counter | `tool_name`, `status` |
+| `forgesight_mcp_invocations` | Counter | `mcp_method_name`, `status` |
+| `forgesight_gen_ai_client_token_usage` | Histogram (`TOKEN_BUCKETS`) | `gen_ai_provider_name`, `gen_ai_operation_name`, `gen_ai_token_type` |
+| `forgesight_gen_ai_client_operation_duration_seconds` | Histogram (`DURATION_BUCKETS`) | `gen_ai_provider_name`, `gen_ai_operation_name` |
 
-**Tokens** are observed per type (`input`, `output`, `cache_read`, `cache_creation`, `reasoning`) on the token-usage histogram with `gen_ai_operation_name="chat"`. **Cost** (`llm.cost_usd`) increments `agentforge_agent_cost_usd` keyed by provider. Agent duration is observed in milliseconds; the GenAI operation-duration histogram is in seconds.
+**Tokens** are observed per type (`input`, `output`, `cache_read`, `cache_creation`, `reasoning`) on the token-usage histogram with `gen_ai_operation_name="chat"`. **Cost** (`llm.cost_usd`) increments `forgesight_agent_cost_usd` keyed by provider. Agent duration is observed in milliseconds; the GenAI operation-duration histogram is in seconds.
 
 ## Operate it
 
@@ -104,7 +104,7 @@ The exporter starts its `/metrics` server lazily on first successful export. Bri
 docker compose up -d prometheus   # UI :9090, scrapes the agent on :9464
 ```
 
-The bundled scrape config targets the host (`host.docker.internal:9464`), so run the agent on the host. **Verify** two ways: hit the agent's endpoint directly at <http://localhost:9464/metrics> and grep for `agentforge_agent_runs`, then in the Prometheus UI at <http://localhost:9090> query `agentforge_agent_runs` (and check **Status → Targets** shows the agent UP).
+The bundled scrape config targets the host (`host.docker.internal:9464`), so run the agent on the host. **Verify** two ways: hit the agent's endpoint directly at <http://localhost:9464/metrics> and grep for `forgesight_agent_runs`, then in the Prometheus UI at <http://localhost:9090> query `forgesight_agent_runs` (and check **Status → Targets** shows the agent UP).
 
 ## Troubleshooting
 

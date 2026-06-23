@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight — locked telemetry contracts (domain model + SPIs). Vendor-neutral, zero backend deps."
 readme = "README.md"
 requires-python = ">=3.11"

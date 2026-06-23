@@ -16,7 +16,7 @@ _log = logging.getLogger("forgesight.fastapi")
 
 SPAN_KINDS = ("agent_run", "workflow_run")
 DEFAULT_SPAN_KIND = "agent_run"
-DEFAULT_RUN_ID_HEADER = "x-agentforge-run-id"
+DEFAULT_RUN_ID_HEADER = "x-forgesight-run-id"
 DEFAULT_EXCLUDE_PATHS: tuple[str, ...] = (
     "/health",
     "/healthz",

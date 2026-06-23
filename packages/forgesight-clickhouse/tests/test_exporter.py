@@ -284,7 +284,7 @@ def test_create_table_runs_ddl_once() -> None:
     exporter.export([_llm_record()])
     exporter.export([_llm_record()])
     assert len(client.commands) == 1  # DDL emitted once, on first export
-    assert "CREATE TABLE IF NOT EXISTS agentforge_records" in client.commands[0]
+    assert "CREATE TABLE IF NOT EXISTS forgesight_records" in client.commands[0]
 
 
 def test_create_table_false_emits_no_ddl() -> None:
@@ -296,7 +296,7 @@ def test_create_table_false_emits_no_ddl() -> None:
 def test_load_ddl_retargets_table_name() -> None:
     sql = _load_ddl("custom_records")
     assert "CREATE TABLE IF NOT EXISTS custom_records" in sql
-    assert "agentforge_records" not in sql
+    assert "forgesight_records" not in sql
     # column contract intact after retarget
     assert "cost_usd" in sql
     assert "ORDER BY (trace_id, start_time, run_id)" in sql

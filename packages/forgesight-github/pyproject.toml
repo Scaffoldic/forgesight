@@ -1,6 +1,6 @@
 [project]
 name = "forgesight-github"
-version = "0.1.0"
+version = "0.1.1"
 description = "ForgeSight GitHub Actions integration — one-line CI bootstrap; run↔commit/PR/job correlation."
 readme = "README.md"
 requires-python = ">=3.11"

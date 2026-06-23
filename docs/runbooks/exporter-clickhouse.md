@@ -4,7 +4,7 @@
 
 ## What it does
 
-`ClickHouseExporter` writes each immutable `Record` as one row in a denormalized MergeTree table (`agentforge_records` by default). Because a record is written once and never updated, trace-level business metadata is denormalized onto every row — no join table, so analytical queries (`sum(cost_usd) GROUP BY team`) never pay a join. It runs on the export worker (never the hot path) and issues one columnar `INSERT` per `batch_size` chunk of the batch the pipeline hands it.
+`ClickHouseExporter` writes each immutable `Record` as one row in a denormalized MergeTree table (`forgesight_records` by default). Because a record is written once and never updated, trace-level business metadata is denormalized onto every row — no join table, so analytical queries (`sum(cost_usd) GROUP BY team`) never pay a join. It runs on the export worker (never the hot path) and issues one columnar `INSERT` per `batch_size` chunk of the batch the pipeline hands it.
 
 ## When to use it
 
@@ -30,7 +30,7 @@ Constructor (all keyword-only, all optional; env fills the gaps):
 ```python
 ClickHouseExporter(
     dsn=None,                    # FORGESIGHT_CLICKHOUSE_DSN — required (or pass a client)
-    table="agentforge_records",  # FORGESIGHT_CLICKHOUSE_TABLE
+    table="forgesight_records",  # FORGESIGHT_CLICKHOUSE_TABLE
     batch_size=512,              # FORGESIGHT_CLICKHOUSE_BATCH_SIZE — clamped to pipeline max
     async_insert=True,           # FORGESIGHT_CLICKHOUSE_ASYNC_INSERT
     wait_for_async_insert=False, # FORGESIGHT_CLICKHOUSE_WAIT_ASYNC
@@ -41,7 +41,7 @@ ClickHouseExporter(
 | Key | Env | Default | Notes |
 |---|---|---|---|
 | `dsn` | `FORGESIGHT_CLICKHOUSE_DSN` | — (required) | `clickhouse://…` URL; secret, never logged |
-| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `agentforge_records` | validated identifier (optionally `db.table`) |
+| `table` | `FORGESIGHT_CLICKHOUSE_TABLE` | `forgesight_records` | validated identifier (optionally `db.table`) |
 | `batch_size` | `FORGESIGHT_CLICKHOUSE_BATCH_SIZE` | `512` | rows per `INSERT`; clamped to pipeline `max_export_batch_size` with a WARN |
 | `async_insert` | `FORGESIGHT_CLICKHOUSE_ASYNC_INSERT` | `true` | sets ClickHouse `async_insert` (server-side buffering) |
 | `wait_for_async_insert` | `FORGESIGHT_CLICKHOUSE_WAIT_ASYNC` | `false` | `true` = stronger durability, higher latency |
@@ -61,7 +61,7 @@ forgesight.configure(
     exporter_config={
         "clickhouse": {
             "dsn": "${FORGESIGHT_CLICKHOUSE_DSN}",   # clickhouse://user:pass@host:8123/db
-            "table": "agentforge_records",
+            "table": "forgesight_records",
             "batch_size": 512,
             "async_insert": True,
             "create_table": True,                     # dev: emit DDL on first export
@@ -77,7 +77,7 @@ exporters:
   - name: clickhouse
     config:
       dsn: "${FORGESIGHT_CLICKHOUSE_DSN}"   # clickhouse://user:pass@host:8123/db
-      table: "agentforge_records"
+      table: "forgesight_records"
       batch_size: 512
       async_insert: true
       create_table: true                    # dev convenience; prod runs migrations
@@ -135,7 +135,7 @@ Verify rows arrived after a run:
 
 ```sql
 SELECT kind, count() AS rows, round(sum(cost_usd), 4) AS cost
-FROM forgesight.agentforge_records
+FROM forgesight.forgesight_records
 GROUP BY kind ORDER BY rows DESC;
 ```
 

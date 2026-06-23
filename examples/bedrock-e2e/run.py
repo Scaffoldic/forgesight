@@ -72,7 +72,7 @@ def main() -> None:
         telemetry.agent_run(
             "bedrock-demo",
             version="1.0.0",
-            metadata={"team": "platform", "owner": "engg.kjoshi@gmail.com", "environment": "demo"},
+            metadata={"team": "platform", "owner": "owner@example.com", "environment": "demo"},
         ) as run,
         run.step("answer-question"),
     ):
@@ -147,7 +147,7 @@ def main() -> None:
     print("  waiting 8s for a scrape…")
     time.sleep(8)
     try:
-        q = _http_json(f"{PROM}/api/v1/query?query=%7B__name__%3D~%22agentforge_.%2B%22%7D")
+        q = _http_json(f"{PROM}/api/v1/query?query=%7B__name__%3D~%22forgesight_.%2B%22%7D")
         names = sorted({r["metric"]["__name__"] for r in q["data"]["result"]})
         print(f"  ✅ Prometheus has {len(names)} forgesight metrics scraped:")
         for n in names[:10]:
