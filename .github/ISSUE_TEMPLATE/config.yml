@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Scaffoldic/forgesight/security/advisories/new
+    about: Please report security issues privately, not as public issues. See SECURITY.md.
+  - name: Question / usage help / discussion
+    url: https://github.com/Scaffoldic/forgesight/discussions
+    about: For usage questions and open-ended discussion, use Discussions — not the issue tracker.
