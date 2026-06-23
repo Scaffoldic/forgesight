@@ -4,6 +4,7 @@
 and a tamper-evident audit trail to any backend by changing one line of config.
 OpenTelemetry-first. Vendor-neutral. Never an agent-code change.**
 
+[![PyPI](https://img.shields.io/pypi/v/forgesight?color=blue&label=PyPI)](https://pypi.org/project/forgesight/)
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11_|_3.12_|_3.13-blue.svg)](#quick-start)
 [![CI](https://img.shields.io/badge/CI-ruff_·_mypy--strict_·_pytest_≥90%25-brightgreen.svg)](./.github/workflows/ci.yml)
@@ -229,9 +230,9 @@ pip install "forgesight[all]"                  # everything except the heavy Cre
 Each integration is also a standalone distribution (`pip install forgesight-otel`) if you'd
 rather pin them individually. Python 3.11–3.13.
 
-> Pre-PyPI: until the packages are published, install from a built wheel or a git checkout.
-> The PyPI release is tracked in `launch/` (publishing is automated via OIDC trusted
-> publishing on a version tag).
+> All packages are on PyPI — `pip install forgesight` (the facade) or any package
+> standalone. Releases are published automatically via OIDC trusted publishing on a
+> version tag (`.github/workflows/release.yml`).
 
 ---
 

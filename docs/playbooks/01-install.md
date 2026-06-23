@@ -71,20 +71,19 @@ dependencies = [
 ]
 ```
 
-## Before PyPI (today)
+## Contributor / dev setup
 
-The packages aren't on PyPI yet (publishing is automated via OIDC trusted publishing on a
-version tag — tracked in `launch/`). Until then, install from a built wheel or a checkout:
+Regular users just `pip install forgesight` (above). To hack on ForgeSight itself, work
+from a checkout:
 
 ```bash
-# from a git checkout (contributor / dev setup)
 git clone https://github.com/Scaffoldic/forgesight.git && cd forgesight
-uv sync --all-packages          # installs all 16 packages in editable mode
+uv sync --all-packages          # installs all 17 packages in editable mode
 uv run pytest                   # sanity-check the workspace
 ```
 
-To layer the wheels into a *different* project's environment, build them and install with
-`--find-links` (see the cross-workspace recipe in the AgentForge example README).
+To layer locally-built wheels into a *different* project's environment, build them and
+install with `--find-links` (see the cross-workspace recipe in the AgentForge example README).
 
 ## Verify
 
